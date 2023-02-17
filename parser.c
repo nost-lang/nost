@@ -2,7 +2,7 @@
 #include "parser.h"
 #include "sym.h"
 #include "list.h"
-#include <stdio.h>
+#include "gc.h"
 
 void nost_initParser(nost_vm* vm, nost_parser* parser, nost_src* src) {
     parser->src = src;
@@ -49,7 +49,7 @@ static void error(nost_vm* vm, nost_parser* parser, nost_error err) {
     nost_pushDynarr(vm, &parser->errors, err);
 }
 
-nost_optVal nost_parse(nost_vm* vm, nost_parser* parser) {
+static nost_optVal parse(nost_vm* vm, nost_parser* parser) {
     skipWhitespace(parser);
     if(atEnd(parser))
         return nost_none();
@@ -61,7 +61,7 @@ nost_optVal nost_parse(nost_vm* vm, nost_parser* parser) {
         nost_initDynarr(vm, &elems);
         skipWhitespace(parser);
         while(curr(parser) != ')') {
-            nost_optVal optExpr = nost_parse(vm, parser);
+            nost_optVal optExpr = parse(vm, parser);
             if(!optExpr.nil) {
                 nost_pushDynarr(vm, &elems, optExpr.val);
             } else {
@@ -110,4 +110,13 @@ nost_optVal nost_parse(nost_vm* vm, nost_parser* parser) {
         return nost_some(nost_num(numVal));
 
     return nost_some(nost_makeSym(vm, parser->src->src + start, parser->curr - start));
+}
+
+nost_optVal nost_parse(nost_vm* vm, nost_parser* parser) {
+    vm->gcPaused = true;
+    nost_optVal parsedCode = parse(vm, parser);
+    vm->gcPaused = false;
+    if(!parsedCode.nil)
+        nost_blessVal(vm, parsedCode.val);        
+    return parsedCode;
 }

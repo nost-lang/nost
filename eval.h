@@ -4,7 +4,8 @@
 
 #include "value.h"
 #include "vm.h"
+#include "fiber.h"
 
-nost_val nost_eval(nost_vm* vm, nost_ctx* ctx, nost_val expr);
+nost_val nost_eval(nost_vm* vm, nost_fiber* fiber, nost_val expr);
 
 #endif

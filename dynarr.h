@@ -6,6 +6,7 @@
 #define nost_initDynarr(vm, arr) do {(arr)->elemSize = sizeof(*(arr)->vals); nost_initGenericDynarr(vm, arr);} while(0);
 #define nost_pushDynarr(vm, arr, val) do {typeof(*(arr)->vals) XXXX = val; nost_pushGenericDynarr(vm, (arr), &XXXX);} while(0);
 #define nost_clearDynarr(arr) (arr)->cnt = 0;
+#define nost_popDynarr(arr) (arr)->cnt--;
 #define nost_freeDynarr(vm, arr)  
 
 struct nost_vm;

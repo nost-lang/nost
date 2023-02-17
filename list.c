@@ -10,10 +10,12 @@ nost_cons* nost_makeCons(nost_vm* vm, nost_val car, nost_val cdr) {
 }
 
 nost_val nost_list(struct nost_vm* vm, int cnt, nost_val* elems) {
+    vm->gcPaused = true; // TODO: this is bad
     nost_val res = nost_nil();
     for(int i = cnt - 1; i >= 0; i--) {
         res = nost_objVal((nost_obj*)nost_makeCons(vm, elems[i], res));
     } 
+    vm->gcPaused = false;
     return res;
 }
 

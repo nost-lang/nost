@@ -7,12 +7,15 @@
 typedef enum {
     NOST_OBJ_SYM,
     NOST_OBJ_CONS,
+    NOST_OBJ_FIBER,
 
     NOST_OBJ_SRC
 } nost_objType;
 
-typedef struct {
+typedef struct nost_obj {
     nost_objType type;
+    bool marked;
+    struct nost_obj* next; 
 } nost_obj;
 
 struct nost_vm;
