@@ -3,11 +3,12 @@
 #include "gc.h"
 
 void nost_initVM(nost_vm* vm) {
-    vm->gcPaused = true;
+    vm->gcPaused = 0;
+    nost_gcPause(vm);
     vm->objs = NULL;
     nost_initDynarr(vm, &vm->grayObjs);
     nost_initDynarr(vm, &vm->blessed);
-    vm->gcPaused = false;
+    nost_gcUnpause(vm);
 }
 
 void* nost_alloc(nost_vm* vm, size_t size) {

@@ -10,7 +10,7 @@
 #include "value.h"
 
 typedef struct nost_vm {
-    bool gcPaused;
+    int gcPaused;
     nost_obj* objs;
     nost_dynarr(nost_obj*) grayObjs;
     nost_dynarr(nost_obj*) blessed;

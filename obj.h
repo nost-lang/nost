@@ -9,7 +9,8 @@ typedef enum {
     NOST_OBJ_CONS,
     NOST_OBJ_FIBER,
 
-    NOST_OBJ_SRC
+    NOST_OBJ_SRC,
+    NOST_OBJ_CTX
 } nost_objType;
 
 typedef struct nost_obj {

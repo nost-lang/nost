@@ -31,24 +31,33 @@ static void processGrayObj(nost_vm* vm) {
             markValue(vm, nost_cdr(vm, cons));
             break;
         }
-        case NOST_OBJ_SRC:
-            break;
         case NOST_OBJ_FIBER: {
             nost_fiber* fiber = (nost_fiber*)obj;
-            for(int i = 0; i < fiber->ctx.dynvars.cnt; i++) {
-                nost_dynvar* var = &fiber->ctx.dynvars.vals[i];
+            nost_ctx* ctx = nost_currCtx(fiber);
+            if(ctx != NULL)
+                markObj(vm, (nost_obj*)ctx);
+            break;
+        }
+        case NOST_OBJ_SRC:
+            break;
+        case NOST_OBJ_CTX: {
+            nost_ctx* ctx = (nost_ctx*)obj;
+            for(int i = 0; i < ctx->dynvars.cnt; i++) {
+                nost_dynvar* var = &ctx->dynvars.vals[i];
                 markObj(vm, (nost_obj*)var->name);
                 markValue(vm, var->val);
             }
+            if(ctx->parent != NULL)
+                markObj(vm, (nost_obj*)ctx);
             break;
         }
     }
 }
 
 void nost_gc(nost_vm* vm) {
-    if(vm->gcPaused)
+    if(vm->gcPaused > 0)
         return;
-    vm->gcPaused = true;
+    nost_gcPause(vm);
     for(nost_obj* curr = vm->objs; curr != NULL; curr = curr->next)
         curr->marked = false;
     markRoots(vm); 
@@ -69,13 +78,13 @@ void nost_gc(nost_vm* vm) {
         }
         curr = next;
     }
-    vm->gcPaused = false;
+    nost_gcUnpause(vm);
 }
 
 void nost_bless(nost_vm* vm, nost_obj* obj) {
-    vm->gcPaused = true;
+    nost_gcPause(vm);
     nost_pushDynarr(vm, &vm->blessed, obj);
-    vm->gcPaused = false;
+    nost_gcUnpause(vm);
 }
 
 void nost_blessVal(nost_vm* vm, nost_val val) {
@@ -97,4 +106,12 @@ void nost_unbless(nost_vm* vm, nost_obj* obj) {
 void nost_unblessVal(nost_vm* vm, nost_val val) { 
     if(nost_isObj(val))
         nost_unbless(vm, nost_asObj(val));
+}
+
+void nost_gcPause(nost_vm* vm) {
+    vm->gcPaused++;
+}
+
+void nost_gcUnpause(nost_vm* vm) {
+    vm->gcPaused--;
 }

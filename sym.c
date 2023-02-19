@@ -5,8 +5,8 @@
 nost_val nost_makeSym(nost_vm* vm, const char* sym, size_t len) {
     if(len == 3 && memcmp(sym, "nil", 3) == 0)
         return nost_nil();
-    nost_sym* symObj = (nost_sym*)nost_allocObj(vm, NOST_OBJ_SYM, sizeof(nost_sym));
     char* symStr = nost_alloc(vm, len + 1);
+    nost_sym* symObj = (nost_sym*)nost_allocObj(vm, NOST_OBJ_SYM, sizeof(nost_sym));
     memcpy(symStr, sym, len);
     symStr[len] = '\0';
     symObj->len = len;

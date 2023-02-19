@@ -113,9 +113,9 @@ static nost_optVal parse(nost_vm* vm, nost_parser* parser) {
 }
 
 nost_optVal nost_parse(nost_vm* vm, nost_parser* parser) {
-    vm->gcPaused = true;
+    nost_gcPause(vm);
     nost_optVal parsedCode = parse(vm, parser);
-    vm->gcPaused = false;
+    nost_gcUnpause(vm);
     if(!parsedCode.nil)
         nost_blessVal(vm, parsedCode.val);        
     return parsedCode;

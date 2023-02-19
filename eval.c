@@ -32,6 +32,30 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args)
         nost_setVar(fiber, name, val);
         return val;
     }
+    if(nost_symIs(fn, "progn")) {
+        nost_val res = nost_nil();
+        while(!nost_isNil(args)) {
+            nost_cons* argsCons = nost_asCons(args);
+            res = eval(vm, fiber, nost_car(vm, argsCons));
+            args = nost_cdr(vm, argsCons);
+            if(fiber->hadError)
+                return nost_nil();
+        }
+        return res;
+    }
+    if(nost_symIs(fn, "scope")) {
+        if(argLen != 1) {
+            nost_error err;
+            nost_initError(&err, "Expected only 1 subexpr.");
+            nost_rtError(fiber, err);
+            return nost_nil();
+        }
+        nost_cons* argsCons = nost_asCons(args);
+        nost_pushCtx(vm, fiber);
+        nost_val res = eval(vm, fiber, nost_car(vm, argsCons));
+        nost_popCtx(fiber);
+        return res;
+    }
     nost_error err;
     nost_initError(&err, "Cannot call this.");
     nost_rtError(fiber, err);

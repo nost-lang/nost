@@ -9,20 +9,25 @@ typedef struct {
     nost_val val;
 } nost_dynvar;
 
-typedef struct {
+typedef struct nost_ctx {
+    nost_obj obj;
     nost_dynarr(nost_dynvar) dynvars; 
+    struct nost_ctx* parent;
 } nost_ctx;
 
-void nost_initCtx(nost_vm* vm, nost_ctx* ctx);
+nost_ctx* nost_makeCtx(nost_vm* vm, nost_ctx* parent);
 
 typedef struct {
     nost_obj obj;
-    nost_ctx ctx; 
+    nost_ctx* currCtx; 
     bool hadError;
     nost_error err;
 } nost_fiber;
 
 nost_fiber* nost_makeFiber(nost_vm* vm);
+nost_ctx* nost_currCtx(nost_fiber* fiber);
+void nost_pushCtx(nost_vm* vm, nost_fiber* fiber);
+void nost_popCtx(nost_fiber* fiber);
 
 nost_optVal nost_getVar(nost_fiber* fiber, nost_sym* name);
 bool nost_setVar(nost_fiber* fiber, nost_sym* name, nost_val val);
