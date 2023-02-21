@@ -89,3 +89,7 @@ nost_optVal nost_none() {
     opt.nil = true;
     return opt;
 }
+
+bool nost_truthy(nost_val v) {
+    return !nost_isNil(v);
+}

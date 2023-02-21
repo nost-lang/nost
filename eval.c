@@ -4,9 +4,9 @@
 #include "gc.h"
 #include "fn.h"
 
-static nost_val eval(nost_vm* vm, nost_fiber* fiber, nost_val expr);
+static nost_val eval(nost_vm* vm, nost_fiber* fiber, nost_val expr, int depth);
 
-static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args) {
+static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args, int depth) {
     int argLen = nost_len(vm, args);
     if(nost_symIs(fn, "var")) {
         if(argLen != 2) {
@@ -16,7 +16,7 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args)
             return nost_nil();
         }
         nost_val nameVal = nost_nth(vm, args, 0);
-        nost_val val = eval(vm, fiber, nost_nth(vm, args, 1)); 
+        nost_val val = eval(vm, fiber, nost_nth(vm, args, 1), depth + 1); 
         if(fiber->hadError)
             return nost_nil();
         if(!nost_isSym(nameVal)) {
@@ -39,7 +39,7 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args)
         nost_val res = nost_nil();
         while(!nost_isNil(args)) {
             nost_cons* argsCons = nost_asCons(args);
-            res = eval(vm, fiber, nost_car(vm, argsCons));
+            res = eval(vm, fiber, nost_car(vm, argsCons), depth + 1);
             if(fiber->hadError)
                 return nost_nil();
             args = nost_cdr(vm, argsCons);
@@ -55,10 +55,37 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args)
         }
         nost_cons* argsCons = nost_asCons(args);
         nost_pushCtx(vm, fiber);
-        nost_val res = eval(vm, fiber, nost_car(vm, argsCons));
+        nost_val res = eval(vm, fiber, nost_car(vm, argsCons), depth + 1);
         if(fiber->hadError)
             return nost_nil();
         nost_popCtx(fiber);
+        return res;
+    }
+    if(nost_symIs(fn, "if")) {
+        if(argLen != 3 && argLen != 2) {
+            nost_error err;
+            nost_initError(&err, "Expected 2 or 3 args for if.");
+            nost_rtError(fiber, err);
+            return nost_nil();
+        }
+        nost_val cond = eval(vm, fiber, nost_nth(vm, args, 0), depth + 1);
+        if(fiber->hadError)
+            return nost_nil();
+
+        nost_val res;
+        if(nost_truthy(cond)) {
+            res = eval(vm, fiber, nost_nth(vm, args, 1), depth + 1);
+        } else {
+            if(argLen == 2) {
+                nost_error err;
+                nost_initError(&err, "If does not have false branch.");
+                nost_rtError(fiber, err);
+                return nost_nil();
+            }
+            res = eval(vm, fiber, nost_nth(vm, args, 2), depth + 1);
+        }
+        if(fiber->hadError)
+            return nost_nil();
         return res;
     }
     if(nost_symIs(fn, "lambda")) {
@@ -80,7 +107,7 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args)
         return nost_objVal((nost_obj*)newFn);
     }
 
-    nost_val fnVal = eval(vm, fiber, fn);
+    nost_val fnVal = eval(vm, fiber, fn, depth + 1);
     if(fiber->hadError)
         return nost_nil();
     if(nost_isFn(fnVal)) {
@@ -92,7 +119,7 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args)
         }
         nost_val evaluatedArgs = nost_nil();
         for(int i = argLen - 1; i >= 0; i--) {
-            nost_val nextArg = eval(vm, fiber, argArr[i]);
+            nost_val nextArg = eval(vm, fiber, argArr[i], depth + 1);
             if(fiber->hadError)
                 return nost_nil();
             nost_gcPause(vm);
@@ -105,7 +132,7 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args)
         nost_pushFrame(vm, fiber, fn->closureCtx);
         nost_addDynvar(vm, fiber, fn->argName);
         nost_setVar(fiber, fn->argName, evaluatedArgs);
-        nost_val res = eval(vm, fiber, fn->body);
+        nost_val res = eval(vm, fiber, fn->body, depth + 1);
         if(fiber->hadError)
             return nost_nil();
         nost_popFrame(vm, fiber);
@@ -116,7 +143,7 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args)
         nost_val argVals[argLen];
         for(int i = 0; i < argLen; i++) {
             nost_cons* argCons = nost_asCons(args);
-            nost_val argVal = eval(vm, fiber, nost_car(vm, argCons));
+            nost_val argVal = eval(vm, fiber, nost_car(vm, argCons), depth + 1);
             args = nost_cdr(vm, argCons);
             argVals[i] = argVal; 
             nost_blessVal(vm, argVal);
@@ -134,7 +161,13 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args)
     return nost_nil(); 
 }
 
-static nost_val eval(nost_vm* vm, nost_fiber* fiber, nost_val expr) {
+static nost_val eval(nost_vm* vm, nost_fiber* fiber, nost_val expr, int depth) {
+    if(depth >= 4096) {
+        nost_error err;
+        nost_initError(&err, "Eval depth exceeded.");
+        nost_rtError(fiber, err);
+        return nost_nil(); 
+    }
     if(nost_isNil(expr)) {
         return nost_nil();
     } else if(nost_isNum(expr)) {
@@ -158,7 +191,7 @@ static nost_val eval(nost_vm* vm, nost_fiber* fiber, nost_val expr) {
         }
         nost_cons* cons = nost_asCons(expr);
         nost_val fn = nost_car(vm, cons);
-        return call(vm, fiber, fn, nost_cdr(vm, cons)); 
+        return call(vm, fiber, fn, nost_cdr(vm, cons), depth); 
     }
 
     nost_error err;
@@ -168,5 +201,5 @@ static nost_val eval(nost_vm* vm, nost_fiber* fiber, nost_val expr) {
 } 
 
 nost_val nost_eval(nost_vm* vm, nost_fiber* fiber, nost_val expr) {
-    return eval(vm, fiber, expr);
+    return eval(vm, fiber, expr, 0);
 }

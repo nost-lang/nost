@@ -54,4 +54,6 @@ typedef struct {
 nost_optVal nost_some(nost_val v);
 nost_optVal nost_none();
 
+bool nost_truthy(nost_val v);
+
 #endif
