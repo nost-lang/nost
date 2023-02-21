@@ -9,11 +9,14 @@
 #include "sym.h"
 #include "value.h"
 
+struct nost_ctx;
+
 typedef struct nost_vm {
     int gcPaused;
     nost_obj* objs;
     nost_dynarr(nost_obj*) grayObjs;
     nost_dynarr(nost_obj*) blessed;
+    struct nost_ctx* rootCtx;
 } nost_vm;
 
 void nost_initVM(nost_vm* vm);

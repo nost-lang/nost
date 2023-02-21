@@ -7,8 +7,10 @@
 typedef enum {
     NOST_OBJ_SYM,
     NOST_OBJ_CONS,
+    NOST_OBJ_FN,
     NOST_OBJ_FIBER,
 
+    NOST_OBJ_NATFN,
     NOST_OBJ_SRC,
     NOST_OBJ_CTX
 } nost_objType;

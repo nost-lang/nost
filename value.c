@@ -2,6 +2,7 @@
 #include "value.h"
 #include "sym.h"
 #include "list.h"
+#include "fn.h"
 
 nost_val nost_nil() {
     return (nost_val){NOST_TYPE_NIL, {.num = 0}};
@@ -56,6 +57,22 @@ bool nost_isCons(nost_val val) {
 
 struct nost_cons* nost_asCons(nost_val val) {
     return (nost_cons*)nost_asObj(val);
+}
+
+bool nost_isFn(nost_val val) {
+    return isObjType(val, NOST_OBJ_FN);
+}
+
+nost_fn* nost_asFn(nost_val val) {
+    return (nost_fn*)nost_asObj(val);
+}
+
+bool nost_isNatfn(nost_val val) {
+    return isObjType(val, NOST_OBJ_NATFN);
+}
+
+struct nost_natfn* nost_asNatfn(nost_val val) {
+    return (nost_natfn*)nost_asObj(val);
 }
 
 

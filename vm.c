@@ -1,6 +1,8 @@
 
 #include "vm.h"
 #include "gc.h"
+#include "fiber.h"
+#include "stdlib.h"
 
 void nost_initVM(nost_vm* vm) {
     vm->gcPaused = 0;
@@ -9,6 +11,9 @@ void nost_initVM(nost_vm* vm) {
     nost_initDynarr(vm, &vm->grayObjs);
     nost_initDynarr(vm, &vm->blessed);
     nost_gcUnpause(vm);
+    vm->rootCtx = nost_makeCtx(vm, NULL);
+    nost_unbless(vm, (nost_obj*)vm->rootCtx);
+    nost_initStdlib(vm);
 }
 
 void* nost_alloc(nost_vm* vm, size_t size) {

@@ -2,6 +2,7 @@
 #include "eval.h"
 #include "list.h"
 #include "gc.h"
+#include "fn.h"
 
 static nost_val eval(nost_vm* vm, nost_fiber* fiber, nost_val expr);
 
@@ -16,6 +17,8 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args)
         }
         nost_val nameVal = nost_nth(vm, args, 0);
         nost_val val = eval(vm, fiber, nost_nth(vm, args, 1)); 
+        if(fiber->hadError)
+            return nost_nil();
         if(!nost_isSym(nameVal)) {
             nost_error err;
             nost_initError(&err, "Variable name must be a symbol.");
@@ -37,9 +40,9 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args)
         while(!nost_isNil(args)) {
             nost_cons* argsCons = nost_asCons(args);
             res = eval(vm, fiber, nost_car(vm, argsCons));
-            args = nost_cdr(vm, argsCons);
             if(fiber->hadError)
                 return nost_nil();
+            args = nost_cdr(vm, argsCons);
         }
         return res;
     }
@@ -53,9 +56,78 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args)
         nost_cons* argsCons = nost_asCons(args);
         nost_pushCtx(vm, fiber);
         nost_val res = eval(vm, fiber, nost_car(vm, argsCons));
+        if(fiber->hadError)
+            return nost_nil();
         nost_popCtx(fiber);
         return res;
     }
+    if(nost_symIs(fn, "lambda")) {
+        if(argLen != 2) {
+            nost_error err;
+            nost_initError(&err, "Expected argname and body.");
+            nost_rtError(fiber, err);
+            return nost_nil();
+        }
+        nost_val argName = nost_nth(vm, args, 0);
+        nost_val body = nost_nth(vm, args, 1);
+        if(!nost_isSym(argName)) {
+            nost_error err;
+            nost_initError(&err, "Argname must be a sym.");
+            nost_rtError(fiber, err);
+            return nost_nil();
+        }
+        nost_fn* newFn = nost_makeFn(vm, nost_asSym(argName), body, nost_currCtx(fiber));
+        return nost_objVal((nost_obj*)newFn);
+    }
+
+    nost_val fnVal = eval(vm, fiber, fn);
+    if(fiber->hadError)
+        return nost_nil();
+    if(nost_isFn(fnVal)) {
+        nost_fn* fn = nost_asFn(fnVal);
+        nost_val argArr[argLen];
+        for(int i = 0; i < argLen; i++) {
+            argArr[i] = nost_car(vm, nost_asCons(args));
+            args = nost_cdr(vm, nost_asCons(args));
+        }
+        nost_val evaluatedArgs = nost_nil();
+        for(int i = argLen - 1; i >= 0; i--) {
+            nost_val nextArg = eval(vm, fiber, argArr[i]);
+            if(fiber->hadError)
+                return nost_nil();
+            nost_gcPause(vm);
+            nost_val newEvaluatedArgs = nost_objVal((nost_obj*)nost_makeCons(vm, nextArg, evaluatedArgs));
+            nost_blessVal(vm, newEvaluatedArgs);
+            nost_unblessVal(vm, evaluatedArgs);
+            nost_gcUnpause(vm);
+            evaluatedArgs = newEvaluatedArgs;
+        }
+        nost_pushFrame(vm, fiber, fn->closureCtx);
+        nost_addDynvar(vm, fiber, fn->argName);
+        nost_setVar(fiber, fn->argName, evaluatedArgs);
+        nost_val res = eval(vm, fiber, fn->body);
+        if(fiber->hadError)
+            return nost_nil();
+        nost_popFrame(vm, fiber);
+        return res;
+    }
+    if(nost_isNatfn(fnVal)) {
+        nost_natfn* natfn = nost_asNatfn(fnVal);
+        nost_val argVals[argLen];
+        for(int i = 0; i < argLen; i++) {
+            nost_cons* argCons = nost_asCons(args);
+            nost_val argVal = eval(vm, fiber, nost_car(vm, argCons));
+            args = nost_cdr(vm, argCons);
+            argVals[i] = argVal; 
+            nost_blessVal(vm, argVal);
+        }
+        nost_val res = natfn->fn(vm, fiber, argLen, argVals);    
+        for(int i = 0; i < argLen; i++) {
+            nost_unblessVal(vm, argVals[i]);
+        }
+        return res;
+    }
+
     nost_error err;
     nost_initError(&err, "Cannot call this.");
     nost_rtError(fiber, err);

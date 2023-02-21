@@ -38,6 +38,14 @@ struct nost_cons;
 bool nost_isCons(nost_val val);
 struct nost_cons* nost_asCons(nost_val val);
 
+struct nost_fn;
+bool nost_isFn(nost_val val);
+struct nost_fn* nost_asFn(nost_val val);
+
+struct nost_natfn;
+bool nost_isNatfn(nost_val val);
+struct nost_natfn* nost_asNatfn(nost_val val);
+
 typedef struct {
     bool nil;
     nost_val val;
