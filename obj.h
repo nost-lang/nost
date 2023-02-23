@@ -22,6 +22,10 @@ typedef struct nost_obj {
 } nost_obj;
 
 struct nost_vm;
+void nost_freeObj(struct nost_vm* vm, nost_obj* obj);
 nost_obj* nost_allocObj(struct nost_vm* vm, nost_objType type, size_t size);
+
+extern size_t nost_objSize[];
+extern const char* nost_objTypenames[];
 
 #endif

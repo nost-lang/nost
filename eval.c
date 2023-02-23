@@ -39,11 +39,14 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args,
         nost_val res = nost_nil();
         while(!nost_isNil(args)) {
             nost_cons* argsCons = nost_asCons(args);
+            nost_unblessVal(vm, res); // TODO: this is slow.
             res = eval(vm, fiber, nost_car(vm, argsCons), depth + 1);
             if(fiber->hadError)
                 return nost_nil();
+            nost_blessVal(vm, res);
             args = nost_cdr(vm, argsCons);
         }
+        nost_unblessVal(vm, res);
         return res;
     }
     if(nost_symIs(fn, "scope")) {
@@ -74,7 +77,9 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args,
 
         nost_val res;
         if(nost_truthy(cond)) {
+            nost_pushCtx(vm, fiber);
             res = eval(vm, fiber, nost_nth(vm, args, 1), depth + 1);
+            nost_popCtx(fiber);
         } else {
             if(argLen == 2) {
                 nost_error err;
@@ -82,7 +87,9 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args,
                 nost_rtError(fiber, err);
                 return nost_nil();
             }
+            nost_pushCtx(vm, fiber); 
             res = eval(vm, fiber, nost_nth(vm, args, 2), depth + 1);
+            nost_popCtx(fiber);
         }
         if(fiber->hadError)
             return nost_nil();

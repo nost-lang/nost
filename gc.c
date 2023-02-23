@@ -87,7 +87,7 @@ void nost_gc(nost_vm* vm) {
             } else {
                 prev->next = curr->next;
             } 
-            free(curr);
+            nost_freeObj(vm, curr);
         } else {
             prev = curr;
         }

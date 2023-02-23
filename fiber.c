@@ -84,6 +84,7 @@ bool nost_setVarInCtx(nost_ctx* ctx, nost_sym* name, nost_val val) {
 }
 
 bool nost_addDynvarInCtx(nost_vm* vm, nost_ctx* ctx, nost_sym* name) {
+    nost_gcPause(vm);
     nost_val* valPtr = getVarPtrInCtx(ctx, name);
     if(valPtr == NULL) {
         nost_dynvar var;
@@ -91,6 +92,7 @@ bool nost_addDynvarInCtx(nost_vm* vm, nost_ctx* ctx, nost_sym* name) {
         var.val = nost_nil();
         nost_pushDynarr(vm, &ctx->dynvars, var);
     }
+    nost_gcUnpause(vm);
     return valPtr == NULL; 
 }
 
