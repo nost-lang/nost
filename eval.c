@@ -3,11 +3,61 @@
 #include "list.h"
 #include "gc.h"
 #include "fn.h"
+#include <stdio.h>
 
 static nost_val eval(nost_vm* vm, nost_fiber* fiber, nost_val expr, int depth);
 
+static nost_val callFn(nost_vm* vm, nost_fiber* fiber, nost_fn* fn, nost_val args, int argLen, int depth) {
+    nost_val argArr[argLen];
+    for(int i = 0; i < argLen; i++) {
+        argArr[i] = nost_car(vm, nost_asCons(args));
+        args = nost_cdr(vm, nost_asCons(args));
+    }
+    nost_val evaluatedArgs = nost_nil();
+    for(int i = argLen - 1; i >= 0; i--) {
+        nost_val nextArg = eval(vm, fiber, argArr[i], depth + 1);
+        if(fiber->hadError)
+            return nost_nil();
+        nost_gcPause(vm);
+        nost_val newEvaluatedArgs = nost_objVal((nost_obj*)nost_makeCons(vm, nextArg, evaluatedArgs));
+        nost_blessVal(vm, newEvaluatedArgs);
+        nost_unblessVal(vm, evaluatedArgs);
+        nost_gcUnpause(vm);
+        evaluatedArgs = newEvaluatedArgs;
+    }
+    nost_pushFrame(vm, fiber, fn->closureCtx);
+    nost_addDynvar(vm, fiber, fn->argName);
+    nost_setVar(fiber, fn->argName, evaluatedArgs);
+    nost_val res = eval(vm, fiber, fn->body, depth + 1);
+    if(fiber->hadError)
+        return nost_nil();
+    nost_popFrame(vm, fiber);
+
+    return res;
+}
+
+static nost_val callMacro(nost_vm* vm, nost_fiber* fiber, nost_fn* fn, nost_val args, int depth) {
+    nost_pushFrame(vm, fiber, fn->closureCtx);
+    nost_addDynvar(vm, fiber, fn->argName);
+    nost_setVar(fiber, fn->argName, args);
+    nost_val res = eval(vm, fiber, fn->body, depth + 1);
+    if(fiber->hadError)
+        return nost_nil();
+    nost_popFrame(vm, fiber);
+    return eval(vm, fiber, res, depth + 1);
+}
+
 static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args, int depth) {
     int argLen = nost_len(vm, args);
+    if(nost_symIs(fn, "quote")) {
+        if(argLen != 1) {
+            nost_error err;
+            nost_initError(&err, "Quote takes 1 arg");
+            nost_rtError(fiber, err);
+            return nost_nil();
+        }
+        return nost_car(vm, nost_asCons(args));
+    }
     if(nost_symIs(fn, "var")) {
         if(argLen != 2) {
             nost_error err;
@@ -95,7 +145,7 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args,
             return nost_nil();
         return res;
     }
-    if(nost_symIs(fn, "lambda")) {
+    if(nost_symIs(fn, "lambda") || nost_symIs(fn, "lamac")) {
         if(argLen != 2) {
             nost_error err;
             nost_initError(&err, "Expected argname and body.");
@@ -110,8 +160,14 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args,
             nost_rtError(fiber, err);
             return nost_nil();
         }
-        nost_fn* newFn = nost_makeFn(vm, nost_asSym(argName), body, nost_currCtx(fiber));
-        return nost_objVal((nost_obj*)newFn);
+
+        if(nost_symIs(fn, "lambda")) {
+            nost_fn* newFn = nost_makeFn(vm, nost_asSym(argName), body, nost_currCtx(fiber));
+            return nost_objVal((nost_obj*)newFn);
+        } else {
+            nost_fn* newMacro = nost_makeMacro(vm, nost_asSym(argName), body, nost_currCtx(fiber));
+            return nost_objVal((nost_obj*)newMacro);
+        }
     }
 
     nost_val fnVal = eval(vm, fiber, fn, depth + 1);
@@ -119,31 +175,10 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args,
         return nost_nil();
     if(nost_isFn(fnVal)) {
         nost_fn* fn = nost_asFn(fnVal);
-        nost_val argArr[argLen];
-        for(int i = 0; i < argLen; i++) {
-            argArr[i] = nost_car(vm, nost_asCons(args));
-            args = nost_cdr(vm, nost_asCons(args));
-        }
-        nost_val evaluatedArgs = nost_nil();
-        for(int i = argLen - 1; i >= 0; i--) {
-            nost_val nextArg = eval(vm, fiber, argArr[i], depth + 1);
-            if(fiber->hadError)
-                return nost_nil();
-            nost_gcPause(vm);
-            nost_val newEvaluatedArgs = nost_objVal((nost_obj*)nost_makeCons(vm, nextArg, evaluatedArgs));
-            nost_blessVal(vm, newEvaluatedArgs);
-            nost_unblessVal(vm, evaluatedArgs);
-            nost_gcUnpause(vm);
-            evaluatedArgs = newEvaluatedArgs;
-        }
-        nost_pushFrame(vm, fiber, fn->closureCtx);
-        nost_addDynvar(vm, fiber, fn->argName);
-        nost_setVar(fiber, fn->argName, evaluatedArgs);
-        nost_val res = eval(vm, fiber, fn->body, depth + 1);
-        if(fiber->hadError)
-            return nost_nil();
-        nost_popFrame(vm, fiber);
-        return res;
+        if(!fn->macro)
+            return callFn(vm, fiber, fn, args, argLen, depth);
+        else
+            return callMacro(vm, fiber, fn, args, depth);
     }
     if(nost_isNatfn(fnVal)) {
         nost_natfn* natfn = nost_asNatfn(fnVal);

@@ -12,9 +12,11 @@ typedef struct nost_fn {
     nost_sym* argName;
     nost_val body;
     nost_ctx* closureCtx;
+    bool macro;
 } nost_fn;
 
 nost_fn* nost_makeFn(nost_vm* vm, nost_sym* argName, nost_val body, nost_ctx* closureCtx);
+nost_fn* nost_makeMacro(nost_vm* vm, nost_sym* argName, nost_val body, nost_ctx* closureCtx);
 
 typedef struct nost_natfn {
     nost_obj obj;
