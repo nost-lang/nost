@@ -3,6 +3,7 @@
 #include "gc.h"
 #include "fiber.h"
 #include "stdlib.h"
+#include "pkg.h"
 
 void nost_initVM(nost_vm* vm) {
     vm->heapAllocated = 0;
@@ -20,6 +21,9 @@ void nost_initVM(nost_vm* vm) {
     vm->rootCtx = nost_makeCtx(vm, NULL);
     nost_unbless(vm, (nost_obj*)vm->rootCtx);
     nost_initStdlib(vm);
+
+    nost_initDynarr(vm, &vm->pkgs);
+    nost_initDynarr(vm, &vm->pkgLoaders);
 }
 
 void nost_freeVM(nost_vm* vm) {
@@ -31,6 +35,8 @@ void nost_freeVM(nost_vm* vm) {
         nost_freeObj(vm, curr);
         curr = next;
     }
+    nost_freeDynarr(vm, &vm->pkgs);
+    nost_freeDynarr(vm, &vm->pkgLoaders);
 }
 
 void* nost_alloc(nost_vm* vm, size_t size) {
@@ -105,3 +111,16 @@ void nost_dbgFree(nost_vm* vm, void* ptr, size_t size) {
 }
 
 #endif
+
+nost_pkg* nost_loadPkg(nost_vm* vm, nost_fiber* fiber, const char* name, nost_pkg* importFrom) {
+    for(int i = 0; i < vm->pkgLoaders.cnt; i++) {
+        nost_pkg* loadedPkg = vm->pkgLoaders.vals[i](vm, fiber, name, importFrom);
+        if(loadedPkg != NULL)
+            return loadedPkg;
+    }
+    return NULL;
+}
+
+void nost_addPkgLoader(nost_vm* vm, nost_pkgLoader loader) {
+    nost_pushDynarr(vm, &vm->pkgLoaders, loader);
+}

@@ -6,17 +6,19 @@
 #include "obj.h"
 #include "value.h"
 #include "fiber.h"
+#include "pkg.h"
 
 typedef struct nost_fn {
     nost_obj obj;
     nost_sym* argName;
     nost_val body;
     nost_ctx* closureCtx;
+    nost_pkg* pkg;
     bool macro;
 } nost_fn;
 
-nost_fn* nost_makeFn(nost_vm* vm, nost_sym* argName, nost_val body, nost_ctx* closureCtx);
-nost_fn* nost_makeMacro(nost_vm* vm, nost_sym* argName, nost_val body, nost_ctx* closureCtx);
+nost_fn* nost_makeFn(nost_vm* vm, nost_sym* argName, nost_val body, nost_ctx* closureCtx, nost_pkg* pkg);
+nost_fn* nost_makeMacro(nost_vm* vm, nost_sym* argName, nost_val body, nost_ctx* closureCtx, nost_pkg* pkg);
 
 typedef struct nost_natfn {
     nost_obj obj;

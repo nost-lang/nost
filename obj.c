@@ -4,6 +4,7 @@
 #include "list.h"
 #include "fn.h"
 #include "fiber.h"
+#include "pkg.h"
 #include "src.h"
 
 nost_obj* nost_allocObj(nost_vm* vm, nost_objType type, size_t size) {
@@ -30,6 +31,11 @@ void nost_freeObj(nost_vm* vm, nost_obj* obj) {
             nost_freeDynarr(vm, &fiber->frames);
             break;
         }
+        case NOST_OBJ_PKG: {
+            nost_pkg* pkg = (nost_pkg*)obj;
+            nost_free(vm, pkg->name, strlen(pkg->name) + 1);
+            break;
+        }
 
         case NOST_OBJ_NATFN:
             break;
@@ -54,6 +60,7 @@ size_t nost_objSize[] = {
     [NOST_OBJ_CONS] = sizeof(nost_cons),
     [NOST_OBJ_FN] = sizeof(nost_fn),
     [NOST_OBJ_FIBER] = sizeof(nost_fiber),
+    [NOST_OBJ_PKG] = sizeof(nost_pkg),
     [NOST_OBJ_NATFN] = sizeof(nost_natfn),
     [NOST_OBJ_SRC] = sizeof(nost_src),
     [NOST_OBJ_CTX] = sizeof(nost_ctx)
@@ -64,6 +71,7 @@ const char* nost_objTypenames[] = {
     [NOST_OBJ_CONS] = "cons",
     [NOST_OBJ_FN] = "fn",
     [NOST_OBJ_FIBER] = "fiber",
+    [NOST_OBJ_PKG] = "pkg",
     [NOST_OBJ_NATFN] = "natfn",
     [NOST_OBJ_SRC] = "src",
     [NOST_OBJ_CTX] = "ctx" 

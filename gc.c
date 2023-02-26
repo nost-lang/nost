@@ -3,6 +3,7 @@
 #include "list.h"
 #include "fiber.h"
 #include "fn.h"
+#include "pkg.h"
 
 static void markObj(nost_vm* vm, nost_obj* obj) {
     nost_pushDynarr(vm, &vm->grayObjs, obj);
@@ -18,6 +19,8 @@ static void markRoots(nost_vm* vm) {
     markObj(vm, (nost_obj*)vm->rootCtx);
     for(int i = 0; i < vm->blessed.cnt; i++)
         markObj(vm, vm->blessed.vals[i]);
+    for(int i = 0; i < vm->pkgs.cnt; i++)
+        markObj(vm, (nost_obj*)vm->pkgs.vals[i]);
 }
 
 static void processGrayObj(nost_vm* vm) {
@@ -36,19 +39,28 @@ static void processGrayObj(nost_vm* vm) {
             markValue(vm, nost_cdr(vm, cons));
             break;
         }
-        case NOST_OBJ_FIBER: {
-            nost_fiber* fiber = (nost_fiber*)obj;
-            for(int i = 0; i < fiber->frames.cnt; i++) {
-                nost_frame* frame = &fiber->frames.vals[i];
-                markObj(vm, (nost_obj*)frame->currCtx);
-            }
-            break;
-        }
         case NOST_OBJ_FN: {
             nost_fn* fn = (nost_fn*)obj;
             markObj(vm, (nost_obj*)fn->argName);
             markValue(vm, fn->body);
             markObj(vm, (nost_obj*)fn->closureCtx);
+            if(fn->pkg != NULL)
+                markObj(vm, (nost_obj*)fn->pkg);
+            break;
+        }
+        case NOST_OBJ_FIBER: {
+            nost_fiber* fiber = (nost_fiber*)obj;
+            for(int i = 0; i < fiber->frames.cnt; i++) {
+                nost_frame* frame = &fiber->frames.vals[i];
+                markObj(vm, (nost_obj*)frame->currCtx);
+                if(frame->pkg != NULL)
+                    markObj(vm, (nost_obj*)frame->pkg);
+            }
+            break;
+        }
+        case NOST_OBJ_PKG: {
+            nost_pkg* pkg = (nost_pkg*)obj;
+            markObj(vm, (nost_obj*)pkg->ctx); 
             break;
         }
         case NOST_OBJ_NATFN:

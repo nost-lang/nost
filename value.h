@@ -46,6 +46,10 @@ struct nost_natfn;
 bool nost_isNatfn(nost_val val);
 struct nost_natfn* nost_asNatfn(nost_val val);
 
+struct nost_pkg;
+bool nost_isPkg(nost_val val);
+struct nost_pkg* nost_asPkg(nost_val val);
+
 typedef struct {
     bool nil;
     nost_val val;

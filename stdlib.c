@@ -79,6 +79,8 @@ void printVal(nost_vm* vm, nost_val val) {
         printf("<fn>");
     } else if(nost_isNatfn(val)) {
         printf("<natfn>");
+    } else if(nost_isPkg(val)) {
+        printf("<pkg>");
     } else {
         printf("UNKNOWN VALUE");
     }

@@ -10,6 +10,8 @@
 #include "value.h"
 
 struct nost_ctx;
+struct nost_fiber;
+struct nost_pkg;
 
 #ifdef NOST_MEM_DEBUGGER
 typedef struct nost_allocDesc {
@@ -22,6 +24,8 @@ typedef struct nost_allocDesc {
 } nost_allocDesc;
 #endif
 
+typedef struct nost_pkg* (*nost_pkgLoader)(struct nost_vm* vm, struct nost_fiber* fiber, const char* name, struct nost_pkg* importFrom); 
+
 typedef struct nost_vm {
     int gcPaused;
     nost_obj* objs;
@@ -31,6 +35,8 @@ typedef struct nost_vm {
     size_t heapAllocated;
     int objsAllocated;
 
+    nost_dynarr(struct nost_pkg*) pkgs;
+    nost_dynarr(nost_pkgLoader) pkgLoaders;
 #ifdef NOST_MEM_DEBUGGER
     nost_allocDesc* allocs; 
 #endif
@@ -62,5 +68,7 @@ void nost_dbgFree(nost_vm* vm, void* ptr, size_t size);
 
 #endif
 
+struct nost_pkg* nost_loadPkg(nost_vm* vm, struct nost_fiber* fiber, const char* name, struct nost_pkg* importFrom);
+void nost_addPkgLoader(nost_vm* vm, nost_pkgLoader loader); 
 
 #endif

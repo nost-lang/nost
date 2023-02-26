@@ -3,6 +3,7 @@
 #include "list.h"
 #include "gc.h"
 #include "fn.h"
+#include "pkg.h"
 #include <stdio.h>
 
 static nost_val eval(nost_vm* vm, nost_fiber* fiber, nost_val expr, int depth);
@@ -25,7 +26,7 @@ static nost_val callFn(nost_vm* vm, nost_fiber* fiber, nost_fn* fn, nost_val arg
         nost_gcUnpause(vm);
         evaluatedArgs = newEvaluatedArgs;
     }
-    nost_pushFrame(vm, fiber, fn->closureCtx);
+    nost_pushFrame(vm, fiber, fn->closureCtx, fn->pkg);
     nost_addDynvar(vm, fiber, fn->argName);
     nost_setVar(fiber, fn->argName, evaluatedArgs);
     nost_val res = eval(vm, fiber, fn->body, depth + 1);
@@ -37,7 +38,7 @@ static nost_val callFn(nost_vm* vm, nost_fiber* fiber, nost_fn* fn, nost_val arg
 }
 
 static nost_val callMacro(nost_vm* vm, nost_fiber* fiber, nost_fn* fn, nost_val args, int depth) {
-    nost_pushFrame(vm, fiber, fn->closureCtx);
+    nost_pushFrame(vm, fiber, fn->closureCtx, fn->pkg);
     nost_addDynvar(vm, fiber, fn->argName);
     nost_setVar(fiber, fn->argName, args);
     nost_val res = eval(vm, fiber, fn->body, depth + 1);
@@ -162,12 +163,36 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args,
         }
 
         if(nost_symIs(fn, "lambda")) {
-            nost_fn* newFn = nost_makeFn(vm, nost_asSym(argName), body, nost_currCtx(fiber));
+            nost_fn* newFn = nost_makeFn(vm, nost_asSym(argName), body, nost_currCtx(fiber), nost_currFrame(fiber)->pkg);
             return nost_objVal((nost_obj*)newFn);
         } else {
-            nost_fn* newMacro = nost_makeMacro(vm, nost_asSym(argName), body, nost_currCtx(fiber));
+            nost_fn* newMacro = nost_makeMacro(vm, nost_asSym(argName), body, nost_currCtx(fiber), nost_currFrame(fiber)->pkg);
             return nost_objVal((nost_obj*)newMacro);
         }
+    }
+    if(nost_symIs(fn, "import")) {
+        if(argLen != 1) {
+            nost_error err;
+            nost_initError(&err, "import takes package name.");
+            nost_rtError(fiber, err);
+            return nost_nil(); 
+        }
+        nost_val pkgNameVal = nost_nth(vm, args, 0);
+        if(!nost_isSym(pkgNameVal)) {
+            nost_error err;
+            nost_initError(&err, "Package name must be a symbol.");
+            nost_rtError(fiber, err);
+            return nost_nil(); 
+        }
+        nost_sym* pkgNameSym = nost_asSym(pkgNameVal);
+        nost_pkg* pkg = nost_loadPkg(vm, fiber, pkgNameSym->sym, nost_currFrame(fiber)->pkg);
+        if(pkg == NULL) {
+            nost_error err;
+            nost_initError(&err, "Package not found.");
+            nost_rtError(fiber, err);
+            return nost_nil(); 
+        }
+        return nost_objVal((nost_obj*)pkg);
     }
 
     nost_val fnVal = eval(vm, fiber, fn, depth + 1);
@@ -179,6 +204,33 @@ static nost_val call(nost_vm* vm, nost_fiber* fiber, nost_val fn, nost_val args,
             return callFn(vm, fiber, fn, args, argLen, depth);
         else
             return callMacro(vm, fiber, fn, args, depth);
+    }
+    if(nost_isPkg(fnVal)) {
+        nost_pkg* pkg = nost_asPkg(fnVal);
+        if(argLen != 1) {
+            nost_error err;
+            nost_initError(&err, "Expected pkg member name.");
+            nost_rtError(fiber, err);
+            return nost_nil(); 
+        }
+        nost_val memNameVal = eval(vm, fiber, nost_nth(vm, args, 0), depth + 1);
+        if(fiber->hadError)
+            return nost_nil();
+        if(!nost_isSym(memNameVal)) {
+            nost_error err;
+            nost_initError(&err, "Member name must be a sym.");
+            nost_rtError(fiber, err);
+            return nost_nil(); 
+        }
+        nost_sym* memName = nost_asSym(memNameVal);
+        nost_optVal member = nost_getVarInCtx(pkg->ctx, memName);
+        if(member.nil) {
+            nost_error err;
+            nost_initError(&err, "Package member not found.");
+            nost_rtError(fiber, err);
+            return nost_nil(); 
+        }
+        return member.val;
     }
     if(nost_isNatfn(fnVal)) {
         nost_natfn* natfn = nost_asNatfn(fnVal);

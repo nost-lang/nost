@@ -11,7 +11,7 @@ typedef struct {
 
 typedef struct nost_ctx {
     nost_obj obj;
-    nost_dynarr(nost_dynvar) dynvars; 
+    nost_dynarr(nost_dynvar) dynvars; // TODO: use hashmaps 
     struct nost_ctx* parent;
 } nost_ctx;
 
@@ -20,11 +20,14 @@ nost_optVal nost_getVarInCtx(nost_ctx* ctx, nost_sym* name);
 bool nost_setVarInCtx(nost_ctx* ctx, nost_sym* name, nost_val val);
 bool nost_addDynvarInCtx(nost_vm* vm, nost_ctx* ctx, nost_sym* name);
 
-typedef struct {
-    nost_ctx* currCtx;
-} nost_frame;
+struct nost_pkg;
 
 typedef struct {
+    nost_ctx* currCtx;
+    struct nost_pkg* pkg;
+} nost_frame;
+
+typedef struct nost_fiber {
     nost_obj obj;
     nost_dynarr(nost_frame) frames;
     bool hadError;
@@ -34,7 +37,8 @@ typedef struct {
 nost_fiber* nost_makeFiber(nost_vm* vm);
 
 nost_frame* nost_currFrame(nost_fiber* fiber);
-void nost_pushFrame(nost_vm* vm, nost_fiber* fiber, nost_ctx* parentCtx);
+void nost_pushFrame(nost_vm* vm, nost_fiber* fiber, nost_ctx* parentCtx, struct nost_pkg* pkg);
+void nost_pushFrameWithCtx(nost_vm* vm, nost_fiber* fiber, nost_ctx* ctx, struct nost_pkg* pkg);
 void nost_popFrame(nost_vm* vm, nost_fiber* fiber);
 
 nost_ctx* nost_currCtx(nost_fiber* fiber);

@@ -3,6 +3,7 @@
 #include "sym.h"
 #include "list.h"
 #include "fn.h"
+#include "pkg.h"
 
 nost_val nost_nil() {
     return (nost_val){NOST_TYPE_NIL, {.num = 0}};
@@ -73,6 +74,14 @@ bool nost_isNatfn(nost_val val) {
 
 struct nost_natfn* nost_asNatfn(nost_val val) {
     return (nost_natfn*)nost_asObj(val);
+}
+
+bool nost_isPkg(nost_val val) {
+    return isObjType(val, NOST_OBJ_PKG);
+}
+
+struct nost_pkg* nost_asPkg(nost_val val) {
+    return (nost_pkg*)nost_asObj(val);
 }
 
 

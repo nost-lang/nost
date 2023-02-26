@@ -1,12 +1,13 @@
 
 #include "fiber.h"
 #include "gc.h"
+#include "pkg.h"
 
 nost_fiber* nost_makeFiber(nost_vm* vm) {
     nost_fiber* fiber = (nost_fiber*)nost_allocObj(vm, NOST_OBJ_FIBER, sizeof(nost_fiber));
     nost_bless(vm, (nost_obj*)fiber);
     nost_initDynarr(vm, &fiber->frames);
-    nost_pushFrame(vm, fiber, vm->rootCtx);
+    nost_pushFrame(vm, fiber, vm->rootCtx, NULL);
     return fiber;
 }
 
@@ -14,12 +15,19 @@ nost_frame* nost_currFrame(nost_fiber* fiber) {
     return &fiber->frames.vals[fiber->frames.cnt - 1];
 }
 
-void nost_pushFrame(nost_vm* vm, nost_fiber* fiber, nost_ctx* parentCtx) {
+void nost_pushFrameWithCtx(nost_vm* vm, nost_fiber* fiber, nost_ctx* ctx, nost_pkg* pkg) {
     nost_gcPause(vm);
     nost_frame frame;
     nost_pushDynarr(vm, &fiber->frames, frame); 
     nost_frame* newFrame = nost_currFrame(fiber);
-    newFrame->currCtx = nost_makeCtx(vm, parentCtx);
+    newFrame->currCtx = ctx;
+    newFrame->pkg = pkg;
+    nost_gcUnpause(vm);
+}
+
+void nost_pushFrame(nost_vm* vm, nost_fiber* fiber, nost_ctx* parentCtx, nost_pkg* pkg) {
+    nost_gcPause(vm);
+    nost_pushFrameWithCtx(vm, fiber, nost_makeCtx(vm, parentCtx), pkg);
     nost_gcUnpause(vm);
 }
 
