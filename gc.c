@@ -4,6 +4,7 @@
 #include "fiber.h"
 #include "fn.h"
 #include "pkg.h"
+#include "src.h"
 
 static void markObj(nost_vm* vm, nost_obj* obj) {
     nost_pushDynarr(vm, &vm->grayObjs, obj);
@@ -21,6 +22,25 @@ static void markRoots(nost_vm* vm) {
         markObj(vm, vm->blessed.vals[i]);
     for(int i = 0; i < vm->pkgs.cnt; i++)
         markObj(vm, (nost_obj*)vm->pkgs.vals[i]);
+}
+
+static void markError(nost_vm* vm, nost_error* error) {
+    for(int i = 0; i < error->pieces.cnt; i++) {
+        nost_errorPiece* piece = &error->pieces.vals[i];
+        switch(piece->type) {
+            case NOST_PIECE_MESSAGE:
+                break;
+            case NOST_PIECE_VAL_REF: {
+                markValue(vm, piece->as.valRef);
+                break;
+            }
+            case NOST_PIECE_SRC_REF: {
+                markObj(vm, (nost_obj*)piece->as.srcRef.begin.src);
+                markObj(vm, (nost_obj*)piece->as.srcRef.end.src);
+                break;
+            }
+        }
+    }
 }
 
 static void processGrayObj(nost_vm* vm) {
@@ -55,6 +75,7 @@ static void processGrayObj(nost_vm* vm) {
                 markObj(vm, (nost_obj*)frame->currCtx);
                 if(frame->pkg != NULL)
                     markObj(vm, (nost_obj*)frame->pkg);
+                markValue(vm, frame->callsite);
             }
             break;
         }
@@ -67,12 +88,20 @@ static void processGrayObj(nost_vm* vm) {
             break;
         case NOST_OBJ_SRC:
             break;
+        case NOST_OBJ_SRC_OBJ: {
+            nost_srcObj* srcObj = (nost_srcObj*)obj;
+            markObj(vm, (nost_obj*)srcObj->begin.src);
+            markObj(vm, (nost_obj*)srcObj->end.src);
+            markValue(vm, srcObj->val);
+            break;
+        }
         case NOST_OBJ_CTX: {
             nost_ctx* ctx = (nost_ctx*)obj;
             for(int i = 0; i < ctx->dynvars.cnt; i++) {
                 nost_dynvar* var = &ctx->dynvars.vals[i];
                 markObj(vm, (nost_obj*)var->name);
                 markValue(vm, var->val);
+                markValue(vm, var->decl);
             }
             if(ctx->parent != NULL)
                 markObj(vm, (nost_obj*)ctx);

@@ -5,13 +5,20 @@
 #include "gc.h"
 
 void nost_initParser(nost_vm* vm, nost_parser* parser, nost_src* src) {
-    parser->src = src;
-    parser->curr = 0;
+    parser->curr.src = src;
+    parser->curr.idx = 0;
     nost_initDynarr(vm, &parser->errors);
 }
 
 void nost_freeParser(nost_vm* vm, nost_parser* parser) {
+    nost_clearParserErrors(vm, parser);
     nost_freeDynarr(vm, &parser->errors);
+}
+
+void nost_clearParserErrors(nost_vm* vm, nost_parser* parser) {
+    for(int i = 0; i < parser->errors.cnt; i++)
+        nost_freeError(vm, &parser->errors.vals[i]);
+    nost_clearDynarr(&parser->errors);
 }
 
 static bool isWhitespace(char c) {
@@ -27,7 +34,7 @@ static bool isDigit(char c) {
 }
 
 static char curr(nost_parser* parser) {
-    return parser->src->src[parser->curr];
+    return parser->curr.src->src[parser->curr.idx];
 }
 
 static bool atEnd(nost_parser* parser) {
@@ -37,7 +44,7 @@ static bool atEnd(nost_parser* parser) {
 static void advance(nost_parser* parser) {
     if(atEnd(parser))
         return;
-    parser->curr++;
+    parser->curr.idx++;
 }
 
 static void skipWhitespace(nost_parser* parser) {
@@ -49,10 +56,9 @@ static void error(nost_vm* vm, nost_parser* parser, nost_error err) {
     nost_pushDynarr(vm, &parser->errors, err);
 }
 
+static nost_optVal parseExpr(nost_vm* vm, nost_parser* parser);
+
 static nost_optVal parse(nost_vm* vm, nost_parser* parser) {
-    skipWhitespace(parser);
-    if(atEnd(parser))
-        return nost_none();
 
     if(curr(parser) == '(') {
         advance(parser);
@@ -61,12 +67,14 @@ static nost_optVal parse(nost_vm* vm, nost_parser* parser) {
         nost_initDynarr(vm, &elems);
         skipWhitespace(parser);
         while(curr(parser) != ')') {
-            nost_optVal optExpr = parse(vm, parser);
+            nost_optVal optExpr = parseExpr(vm, parser);
             if(!optExpr.nil) {
                 nost_pushDynarr(vm, &elems, optExpr.val);
             } else {
                 nost_error err;
-                nost_initError(&err, "Expected ).");
+                nost_initError(vm, &err);
+                nost_addMessage(vm, &err, "Expected ).");
+                nost_addSrcPointRef(vm, &err, parser->curr);
                 error(vm, parser, err);
                 return nost_some(nost_nil());
             } 
@@ -79,7 +87,7 @@ static nost_optVal parse(nost_vm* vm, nost_parser* parser) {
         return nost_some(res);
     }
     
-    int start = parser->curr;
+    int start = parser->curr.idx;
 
     bool isNum = isDigit(curr(parser));
     double numVal = 0;
@@ -109,12 +117,27 @@ static nost_optVal parse(nost_vm* vm, nost_parser* parser) {
     if(isNum)
         return nost_some(nost_num(numVal));
 
-    return nost_some(nost_makeSym(vm, parser->src->src + start, parser->curr - start));
+    return nost_some(nost_makeSym(vm, parser->curr.src->src + start, parser->curr.idx - start));
+}
+
+static nost_optVal parseExpr(nost_vm* vm, nost_parser* parser) {
+
+    skipWhitespace(parser);
+    if(atEnd(parser))
+        return nost_none();
+
+    int begin = parser->curr.idx;
+    nost_optVal res = parse(vm, parser);
+    int end = parser->curr.idx - 1;
+    if(res.nil)
+        return nost_none();
+    else
+        return nost_some(nost_makeSrcObj(vm, parser->curr.src, res.val, begin, end));
 }
 
 nost_optVal nost_parse(nost_vm* vm, nost_parser* parser) {
-    nost_gcPause(vm);
-    nost_optVal parsedCode = parse(vm, parser);
+    nost_gcPause(vm); // TODO: this makes read-macros impossible. fix.
+    nost_optVal parsedCode = parseExpr(vm, parser);
     nost_gcUnpause(vm);
     if(!parsedCode.nil)
         nost_blessVal(vm, parsedCode.val);        

@@ -30,13 +30,14 @@ void nost_freeVM(nost_vm* vm) {
     nost_gcPause(vm);
     nost_freeDynarr(vm, &vm->grayObjs);
     nost_freeDynarr(vm, &vm->blessed);
+    nost_freeDynarr(vm, &vm->pkgs);
+    nost_freeDynarr(vm, &vm->pkgLoaders);
+
     for(nost_obj* curr = vm->objs; curr != NULL;) {
         nost_obj* next = curr->next;
         nost_freeObj(vm, curr);
         curr = next;
     }
-    nost_freeDynarr(vm, &vm->pkgs);
-    nost_freeDynarr(vm, &vm->pkgLoaders);
 }
 
 void* nost_alloc(nost_vm* vm, size_t size) {
@@ -112,9 +113,9 @@ void nost_dbgFree(nost_vm* vm, void* ptr, size_t size) {
 
 #endif
 
-nost_pkg* nost_loadPkg(nost_vm* vm, nost_fiber* fiber, const char* name, nost_pkg* importFrom) {
+nost_pkg* nost_loadPkg(nost_vm* vm, nost_fiber* fiber, const char* name, nost_pkg* importFrom, nost_val importCode) {
     for(int i = 0; i < vm->pkgLoaders.cnt; i++) {
-        nost_pkg* loadedPkg = vm->pkgLoaders.vals[i](vm, fiber, name, importFrom);
+        nost_pkg* loadedPkg = vm->pkgLoaders.vals[i](vm, fiber, name, importFrom, importCode);
         if(loadedPkg != NULL)
             return loadedPkg;
     }

@@ -4,6 +4,7 @@
 
 #include "common.h"
 #include "obj.h"
+#include "str.h"
 
 typedef enum {
     NOST_TYPE_NIL,
@@ -50,6 +51,11 @@ struct nost_pkg;
 bool nost_isPkg(nost_val val);
 struct nost_pkg* nost_asPkg(nost_val val);
 
+struct nost_srcObj;
+bool nost_isSrcObj(nost_val val);
+struct nost_srcObj* nost_asSrcObj(nost_val val);
+nost_val nost_unwrap(nost_val val);
+
 typedef struct {
     bool nil;
     nost_val val;
@@ -59,5 +65,9 @@ nost_optVal nost_some(nost_val v);
 nost_optVal nost_none();
 
 bool nost_truthy(nost_val v);
+
+void nost_writeVal(struct nost_vm* vm, nost_str* str, nost_val val);
+
+const char* nost_typename(nost_val val);
 
 #endif

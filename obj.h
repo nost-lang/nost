@@ -13,6 +13,7 @@ typedef enum {
 
     NOST_OBJ_NATFN,
     NOST_OBJ_SRC,
+    NOST_OBJ_SRC_OBJ,
     NOST_OBJ_CTX
 } nost_objType;
 

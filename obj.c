@@ -33,7 +33,7 @@ void nost_freeObj(nost_vm* vm, nost_obj* obj) {
         }
         case NOST_OBJ_PKG: {
             nost_pkg* pkg = (nost_pkg*)obj;
-            nost_free(vm, pkg->name, strlen(pkg->name) + 1);
+            NOST_FREE(vm, pkg->name, strlen(pkg->name) + 1);
             break;
         }
 
@@ -41,10 +41,16 @@ void nost_freeObj(nost_vm* vm, nost_obj* obj) {
             break;
         case NOST_OBJ_SRC: {
             nost_src* src = (nost_src*)obj;
+            if(src->name != NULL) {
+                size_t nameSize = strlen(src->name) + 1;
+                NOST_FREE(vm, src->name, nameSize);
+            }
             size_t size = strlen(src->src) + 1;
             NOST_FREE(vm, src->src, size);
             break;
         }
+        case NOST_OBJ_SRC_OBJ:
+            break;
         case NOST_OBJ_CTX: {
             nost_ctx* ctx = (nost_ctx*)obj;
             nost_freeDynarr(vm, &ctx->dynvars);
@@ -63,6 +69,7 @@ size_t nost_objSize[] = {
     [NOST_OBJ_PKG] = sizeof(nost_pkg),
     [NOST_OBJ_NATFN] = sizeof(nost_natfn),
     [NOST_OBJ_SRC] = sizeof(nost_src),
+    [NOST_OBJ_SRC_OBJ] = sizeof(nost_srcObj),
     [NOST_OBJ_CTX] = sizeof(nost_ctx)
 };
 
@@ -74,5 +81,6 @@ const char* nost_objTypenames[] = {
     [NOST_OBJ_PKG] = "pkg",
     [NOST_OBJ_NATFN] = "natfn",
     [NOST_OBJ_SRC] = "src",
+    [NOST_OBJ_SRC_OBJ] = "srcObj",
     [NOST_OBJ_CTX] = "ctx" 
 };
