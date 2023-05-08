@@ -16,7 +16,10 @@ static void dumpAst(nost_ast* ast, int indent) {
             // TODO: actually print the value. too lazy to do that rn.
             nost_astLiteral* literal = (nost_astLiteral*)ast;
             (void)literal;
-            printf("literal\n");
+            printf("literal");
+            if(nost_isNum(literal->val))
+                printf(" %g", nost_asNum(literal->val));
+            printf("\n");
             break;
         }
         case NOST_AST_VAR: {
@@ -43,6 +46,16 @@ static void dumpAst(nost_ast* ast, int indent) {
             dumpAst(nost_asAst(scope->expr), indent + 1);
             break;
         }
+        case NOST_AST_IF: {
+            nost_astIf* ifAst = (nost_astIf*)ast;
+            printf("if\n");
+            dumpAst(nost_asAst(ifAst->cond), indent + 1);
+            dumpAst(nost_asAst(ifAst->thenExpr), indent + 1);
+            if(!nost_isNil(ifAst->elseExpr)) {
+                dumpAst(nost_asAst(ifAst->elseExpr), indent + 1);
+            }
+            break;
+        }
         case NOST_AST_CALL: {
             nost_astCall* call = (nost_astCall*)ast;
             printf("call %d\n", call->nArgs);
@@ -61,9 +74,13 @@ void nost_dumpAst(nost_ast* ast) {
 void nost_dumpBytecode(nost_bytecode* bytecode) {
 
 #define READ() (bytecode->code.vals[i++])
+
+    uint32_t read32Res;
+#define READ32() do {read32Res = 0; read32Res |= READ() << 24; read32Res |= READ() << 16; read32Res |= READ() << 8; read32Res |= READ(); } while(0); 
+
     for(int i = 0; i < bytecode->code.cnt;) {
-        nost_op op = READ();
         printf("%d\t|  ", i);
+        nost_op op = READ();
         switch(op) {
             case NOST_OP_DONE: {
                 printf("done\n");
@@ -94,6 +111,16 @@ void nost_dumpBytecode(nost_bytecode* bytecode) {
                 printf("pop ctx\n");
                 break;
             }
+            case NOST_OP_JUMP: {
+                READ32();
+                printf("jump %d\n", read32Res);
+                break;
+            }
+            case NOST_OP_JUMP_FALSE: {
+                READ32();
+                printf("jump if false %d\n", read32Res);
+                break;
+            }
             case NOST_OP_CALL: {
                 int nArgs = READ();
                 printf("call %d\n", nArgs);
@@ -104,4 +131,6 @@ void nost_dumpBytecode(nost_bytecode* bytecode) {
             }
         }
     }
+#undef READ
+#undef READ32
 }

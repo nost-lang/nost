@@ -14,6 +14,7 @@ typedef enum {
     NOST_AST_VAR_DECL,
     NOST_AST_PROGN,
     NOST_AST_SCOPE,
+    NOST_AST_IF,
     NOST_AST_CALL
 } nost_astType;
 
@@ -52,6 +53,13 @@ typedef struct {
 
 typedef struct {
     nost_ast ast;
+    nost_val cond;
+    nost_val thenExpr;
+    nost_val elseExpr;
+} nost_astIf;
+
+typedef struct {
+    nost_ast ast;
     nost_val func;
     int nArgs;
     nost_val* args;
@@ -67,6 +75,7 @@ nost_val nost_parse(nost_vm* vm, nost_val val, nost_errors* errors);
     NOST_X_INSTANCE(VarDecl, VAR_DECL) \
     NOST_X_INSTANCE(Progn, PROGN) \
     NOST_X_INSTANCE(Scope, SCOPE) \
+    NOST_X_INSTANCE(If, IF) \
     NOST_X_INSTANCE(Call, CALL)
 
 #define NOST_X_INSTANCE(name, nameCap) \

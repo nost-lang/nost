@@ -65,6 +65,8 @@ void nost_freeObj(nost_vm* vm, nost_obj* obj) {
                 }
                 case NOST_AST_SCOPE:
                     break;
+                case NOST_AST_IF:
+                    break;
                 case NOST_AST_CALL: {
                     nost_astCall* call = (nost_astCall*)ast;
                     NOST_RES_FREE(vm, call->args, sizeof(nost_val) * call->nArgs);

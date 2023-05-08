@@ -123,6 +123,13 @@ static void traceGreyObj(nost_vm* vm, nost_obj* obj) {
                     ADD_TO_GREY(vm, &scope->expr);
                     break;
                 }
+                case NOST_AST_IF: {
+                    nost_astIf* ifAst = (nost_astIf*)ast;
+                    ADD_TO_GREY(vm, &ifAst->cond);
+                    ADD_TO_GREY(vm, &ifAst->thenExpr);
+                    ADD_TO_GREY(vm, &ifAst->elseExpr);
+                    break;
+                }
                 case NOST_AST_CALL: {
                     nost_astCall* call = (nost_astCall*)ast;
                     ADD_TO_GREY(vm, &call->func);
@@ -214,6 +221,8 @@ static void heapifyObj(nost_vm* vm, nost_obj* obj) {
                     break;
                 }
                 case NOST_AST_SCOPE:
+                    break;
+                case NOST_AST_IF:
                     break;
                 case NOST_AST_CALL: {
                     nost_astCall* call = (nost_astCall*)ast;

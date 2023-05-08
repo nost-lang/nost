@@ -57,6 +57,46 @@ void nost_compile(nost_vm* vm, nost_ref ast, nost_ref bytecode, nost_errors* err
         nost_writeByte(vm, bytecode, NOST_OP_POP_CTX, nost_noneVal());
         return;
     }
+    if(nost_refIsAstIf(vm, ast)) {
+
+        nost_ref condRef = nost_pushBlessing(vm, nost_refAsAstIf(vm, ast)->cond);
+        nost_compile(vm, condRef, bytecode, errors);
+        nost_popBlessing(vm);
+
+        nost_writeByte(vm, bytecode, NOST_OP_JUMP_FALSE, nost_noneVal());
+        int falseJumpAddr = nost_refAsBytecode(vm, bytecode)->code.cnt;
+        nost_writeByte(vm, bytecode, 0, nost_noneVal());
+        nost_writeByte(vm, bytecode, 0, nost_noneVal());
+        nost_writeByte(vm, bytecode, 0, nost_noneVal());
+        nost_writeByte(vm, bytecode, 0, nost_noneVal());
+
+        nost_ref thenRef = nost_pushBlessing(vm, nost_refAsAstIf(vm, ast)->thenExpr);
+        nost_compile(vm, thenRef, bytecode, errors);
+        nost_popBlessing(vm);
+
+        nost_writeByte(vm, bytecode, NOST_OP_JUMP, nost_noneVal());
+        int jumpAddr = nost_refAsBytecode(vm, bytecode)->code.cnt;
+        nost_writeByte(vm, bytecode, 0, nost_noneVal());
+        nost_writeByte(vm, bytecode, 0, nost_noneVal());
+        nost_writeByte(vm, bytecode, 0, nost_noneVal());
+        nost_writeByte(vm, bytecode, 0, nost_noneVal());
+
+        int elseBeginAddr = nost_refAsBytecode(vm, bytecode)->code.cnt; 
+        nost_patch32(vm, bytecode, falseJumpAddr, elseBeginAddr);
+
+        if(nost_isNil(nost_refAsAstIf(vm, ast)->elseExpr)) {
+            nost_writeConst(vm, bytecode, nost_nilVal());
+        } else {
+            nost_ref elseRef = nost_pushBlessing(vm, nost_refAsAstIf(vm, ast)->elseExpr);
+            nost_compile(vm, elseRef, bytecode, errors);
+            nost_popBlessing(vm);
+        }
+
+        int ifEndAddr = nost_refAsBytecode(vm, bytecode)->code.cnt; 
+        nost_patch32(vm, bytecode, jumpAddr, ifEndAddr);
+
+        return;
+    }
     if(nost_refIsAstCall(vm, ast)) {
 
         if(nost_refAsAstCall(vm, ast)->nArgs >= 256) {

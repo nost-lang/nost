@@ -140,6 +140,9 @@ nost_val nost_execBytecode(nost_vm* vm, nost_val fiberVal, nost_val bytecodeVal)
 
 #define READ() (nost_refAsBytecode(vm, bytecode)->code.vals[ip++])
 
+    uint32_t read32Res;
+#define READ32() do {read32Res = 0; read32Res |= READ() << 24; read32Res |= READ() << 16; read32Res |= READ() << 8; read32Res |= READ(); } while(0); 
+
     nost_val res = nost_nilVal();
 
     while(true) {
@@ -183,6 +186,7 @@ nost_val nost_execBytecode(nost_vm* vm, nost_val fiberVal, nost_val bytecodeVal)
                     nost_ref nameRef = nost_pushBlessing(vm, name);
                     error(vm, fiber, startIp, bytecode);
                     nost_addMsg(vm, &nost_refAsFiber(vm, fiber)->err, "Redeclaration of variable '%s'.", nost_refAsSym(vm, nameRef)->sym);
+                    // TODO: add an "original declaration here" part to the error
                     nost_popBlessing(vm);
                     goto done;
                 }
@@ -201,6 +205,18 @@ nost_val nost_execBytecode(nost_vm* vm, nost_val fiberVal, nost_val bytecodeVal)
             case NOST_OP_POP_CTX: {
                 nost_writeBarrier(vm, nost_getRef(vm, fiber), nost_asCtx(nost_refAsFiber(vm, fiber)->ctx)->parent);
                 nost_refAsFiber(vm, fiber)->ctx = nost_asCtx(nost_refAsFiber(vm, fiber)->ctx)->parent;
+                break;
+            }
+            case NOST_OP_JUMP: {
+                READ32();
+                ip = read32Res;
+                break;
+            }
+            case NOST_OP_JUMP_FALSE: {
+                READ32();
+                if(nost_isNil(pop(vm, fiber))) {
+                    ip = read32Res;
+                }
                 break;
             }
             case NOST_OP_CALL: {
@@ -241,5 +257,6 @@ nost_val nost_execBytecode(nost_vm* vm, nost_val fiberVal, nost_val bytecodeVal)
     return res; 
 
 #undef READ
+#undef READ32
 
 }

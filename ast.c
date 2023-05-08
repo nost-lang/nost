@@ -17,6 +17,8 @@ size_t nost_astSize(nost_astType type) {
             return sizeof(nost_astProgn);
         case NOST_AST_SCOPE:
             return sizeof(nost_astScope);
+        case NOST_AST_IF:
+            return sizeof(nost_astIf);
         case NOST_AST_CALL:
             return sizeof(nost_astCall);
     }
@@ -138,7 +140,8 @@ static nost_val parseScope(nost_vm* vm, nost_ref val, nost_ref srcVal, nost_erro
     }
     if(len > 2) {
         nost_error* err = makeError(vm, errors);
-        nost_addMsg(vm, err, "Unexpected expressions.");
+        // DESIGN-TODO: decide whether it makes sense to replace scope with do
+        nost_addMsg(vm, err, "Scope only takes one expression.");
         addValEndRef(vm, err, nost_getRef(vm, srcVal));
         return nost_nilVal();
     }
@@ -152,6 +155,58 @@ static nost_val parseScope(nost_vm* vm, nost_ref val, nost_ref srcVal, nost_erro
     nost_val res = nost_getRef(vm, scopeRef);
     nost_popBlessing(vm);
     return res;
+}
+
+static nost_val parseIf(nost_vm* vm, nost_ref val, nost_ref srcVal, nost_errors* errors) {
+
+    int len = nost_listLen(nost_getRef(vm, val));
+
+    if(len == 1) {
+        nost_error* err = makeError(vm, errors);
+        nost_addMsg(vm, err, "Expected condition.");
+        addValEndRef(vm, err, nost_getRef(vm, srcVal));
+        return nost_nilVal();
+    }
+    if(len == 2) {
+        nost_error* err = makeError(vm, errors);
+        nost_addMsg(vm, err, "Expected then branch.");
+        addValEndRef(vm, err, nost_getRef(vm, srcVal));
+        return nost_nilVal();
+    }
+    if(len > 4) {
+        nost_error* err = makeError(vm, errors);
+        nost_addMsg(vm, err, "Unexpected values.");
+        addValEndRef(vm, err, nost_getRef(vm, srcVal));
+        return nost_nilVal();
+    }
+
+    nost_astIf* ifAst = (nost_astIf*)allocAst(vm, NOST_AST_IF, nost_getRef(vm, srcVal));
+    ifAst->cond = nost_nilVal();
+    ifAst->thenExpr = nost_nilVal();
+    ifAst->elseExpr = nost_nilVal();
+    nost_ref ifRef = nost_pushBlessing(vm, nost_objVal((nost_obj*)ifAst));
+    
+    nost_val cond = nost_parse(vm, nost_nth(vm, nost_getRef(vm, val), 1), errors);
+    nost_writeBarrier(vm, nost_getRef(vm, ifRef), cond);
+    nost_refAsAstIf(vm, ifRef)->cond = cond; 
+
+    nost_val thenExpr = nost_parse(vm, nost_nth(vm, nost_getRef(vm, val), 2), errors);
+    nost_writeBarrier(vm, nost_getRef(vm, ifRef), thenExpr);
+    nost_refAsAstIf(vm, ifRef)->thenExpr = thenExpr; 
+
+    if(len == 4) { 
+        nost_val elseExpr = nost_parse(vm, nost_nth(vm, nost_getRef(vm, val), 3), errors);
+        nost_writeBarrier(vm, nost_getRef(vm, ifRef), elseExpr);
+        nost_refAsAstIf(vm, ifRef)->elseExpr = elseExpr; 
+    } else {
+        nost_refAsAstIf(vm, ifRef)->elseExpr = nost_nilVal();
+    }
+
+    nost_val res = nost_getRef(vm, ifRef);
+
+    nost_popBlessing(vm);
+    return res;
+    
 }
 
 nost_val nost_parse(nost_vm* vm, nost_val srcValRaw, nost_errors* errors) {
@@ -185,6 +240,10 @@ nost_val nost_parse(nost_vm* vm, nost_val srcValRaw, nost_errors* errors) {
         }
         if(carIsSym(vm, val, "scope")) {
             res = parseScope(vm, val, srcVal, errors);
+            goto done;
+        }
+        if(carIsSym(vm, val, "if")) {
+            res = parseIf(vm, val, srcVal, errors);
             goto done;
         }
 

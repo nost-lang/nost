@@ -45,3 +45,14 @@ void nost_writeConst(nost_vm* vm, nost_ref bytecode, nost_val val) {
     nost_moveGCDynarr(&newConsts, &nost_refAsBytecode(vm, bytecode)->consts);
     nost_popBlessing(vm);
 }
+
+void nost_patch32(struct nost_vm* vm, nost_ref bytecode, int addr, uint32_t val) {
+    uint8_t b0 = (val & 0xFF000000) >> 24;
+    uint8_t b1 = (val & 0x00FF0000) >> 16;
+    uint8_t b2 = (val & 0x0000FF00) >> 8;
+    uint8_t b3 =  val & 0x000000FF;
+    nost_refAsBytecode(vm, bytecode)->code.vals[addr + 0] = b0;
+    nost_refAsBytecode(vm, bytecode)->code.vals[addr + 1] = b1;
+    nost_refAsBytecode(vm, bytecode)->code.vals[addr + 2] = b2;
+    nost_refAsBytecode(vm, bytecode)->code.vals[addr + 3] = b3;
+}

@@ -18,6 +18,9 @@ typedef enum {
     NOST_OP_PUSH_CTX,
     NOST_OP_POP_CTX,
 
+    NOST_OP_JUMP,
+    NOST_OP_JUMP_FALSE,
+
     NOST_OP_CALL
 } nost_op;
 
@@ -38,5 +41,6 @@ struct nost_vm;
 nost_val nost_makeBytecode(struct nost_vm* vm);
 void nost_writeByte(struct nost_vm* vm, nost_ref bytecode, uint8_t byte, nost_val src);
 void nost_writeConst(struct nost_vm* vm, nost_ref bytecode, nost_val src);
+void nost_patch32(struct nost_vm* vm, nost_ref bytecode, int addr, uint32_t val);
 
 #endif
