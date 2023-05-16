@@ -58,13 +58,13 @@ static nost_val read(nost_vm* vm, nost_reader* reader, nost_errors* errors) {
 
     if(curr(vm, reader) == '(') {
         advance(vm, reader);
-        nost_ref list = nost_pushBlessing(vm, nost_nilVal());
-        nost_ref tail = nost_pushBlessing(vm, nost_nilVal());
+        nost_ref list = NOST_PUSH_BLESSING(vm, nost_nilVal());
+        nost_ref tail = NOST_PUSH_BLESSING(vm, nost_nilVal());
         while(true) {
             if(reader->eof || curr(vm, reader) == ')')
                 break;
             nost_val next = nost_read(vm, reader, errors);
-            nost_ref nextRef = nost_pushBlessing(vm, next);
+            nost_ref nextRef = NOST_PUSH_BLESSING(vm, next);
             nost_val cons = nost_makeCons(vm); 
             nost_initCons(cons, nost_getRef(vm, nextRef), nost_nilVal());
             if(nost_refIsNil(vm, list)) {
@@ -74,18 +74,27 @@ static nost_val read(nost_vm* vm, nost_reader* reader, nost_errors* errors) {
                 nost_setCdr(vm, nost_getRef(vm, tail), cons);
                 nost_setRef(vm, tail, cons);
             }
-            nost_popBlessing(vm);
+            NOST_POP_BLESSING(vm, nextRef);
         }
         if(curr(vm, reader) != ')') {
             nost_error* err = makeError(vm, errors);
             nost_addMsg(vm, err, "Expected closing bracket.");
+            nost_addSrcRef(vm, err, reader->src, reader->curr, reader->curr + 1);
         } else {
             advance(vm, reader);
         }
         nost_val res = nost_getRef(vm, list);
-        nost_popBlessing(vm);
-        nost_popBlessing(vm);
+        NOST_POP_BLESSING(vm, tail);
+        NOST_POP_BLESSING(vm, list);
         return res;
+    }
+
+    if(curr(vm, reader) == ')') {
+        nost_error* err = makeError(vm, errors);
+        nost_addMsg(vm, err, "Unexpected closing bracket.");
+        nost_addSrcRef(vm, err, reader->src, reader->curr, reader->curr + 1);
+        advance(vm, reader);
+        return nost_nilVal();
     }
     
     int start = reader->curr;
@@ -127,9 +136,9 @@ nost_val nost_read(nost_vm* vm, nost_reader* reader, nost_errors* errors) {
     if(nost_isNone(val))
         return val;
 
-    nost_ref valRef = nost_pushBlessing(vm, val);
+    nost_ref valRef = NOST_PUSH_BLESSING(vm, val);
     nost_val res = nost_makeSrcObj(vm, reader->src, valRef, start, end); 
-    nost_popBlessing(vm);
+    NOST_POP_BLESSING(vm, valRef);
 
     return res;
 }

@@ -7,7 +7,8 @@
 #include "common.h"
 
 typedef enum {
-    NOST_OP_DONE,
+    NOST_OP_DONE, // stop executing bytecode. placed at end of toplevel exec 
+    NOST_OP_RETURN, // exit current frame 
 
     NOST_OP_POP,
 
@@ -21,7 +22,9 @@ typedef enum {
     NOST_OP_JUMP,
     NOST_OP_JUMP_FALSE,
 
-    NOST_OP_CALL
+    NOST_OP_CALL,
+
+    NOST_OP_MAKE_CLOSURE
 } nost_op;
 
 typedef struct {

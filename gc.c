@@ -4,6 +4,9 @@
 #include "fiber.h"
 #include "src.h"
 #include "ast.h"
+#include "fn.h"
+
+#ifndef NOST_BLESS_TRACK
 
 nost_ref nost_pushBlessing(nost_vm* vm, nost_val val) {
     nost_pushDynarr(vm, &vm->blessed, val);
@@ -12,10 +15,41 @@ nost_ref nost_pushBlessing(nost_vm* vm, nost_val val) {
 
 void nost_popBlessing(nost_vm* vm) {
 #ifdef NOST_STRICT_MODE
+    // make it impossible to rely on unblessed values
     vm->blessed.vals[vm->blessed.cnt - 1] = nost_nilVal();
 #endif
     nost_popDynarr(vm, &vm->blessed);
 }
+
+#else
+
+nost_ref nost_pushBlessing(nost_vm* vm, nost_val val, const char* loc) {
+    nost_pushDynarr(vm, &vm->blessed, val);
+    nost_ref ref;
+    ref.idx = vm->blessed.cnt - 1;
+    ref.loc = loc;
+    nost_pushDynarr(vm, &vm->blessedRefs, ref);
+    return ref;
+}
+
+void nost_popBlessing(nost_vm* vm, nost_ref ref) {
+
+    nost_ref topRef = vm->blessedRefs.vals[vm->blessedRefs.cnt - 1]; 
+    if(ref.idx != topRef.idx || ref.loc != topRef.loc) {
+        fprintf(stderr, "Invalid blessing is being popped. Next blessing to pop from %s, received blessing from %s.", topRef.loc, ref.loc);
+        NOST_ASSERT(false, "Invalid pop blessing.")
+    }
+
+#ifdef NOST_STRICT_MODE
+    // make it impossible to rely on unblessed values
+    vm->blessed.vals[vm->blessed.cnt - 1] = nost_nilVal();
+#endif
+
+    nost_popDynarr(vm, &vm->blessed);
+    nost_popDynarr(vm, &vm->blessedRefs);
+}
+
+#endif
 
 #ifndef NOST_GREY_TRACK
 static void addToGrey(nost_vm* vm, nost_val* val) {
@@ -26,6 +60,8 @@ static void addToGrey(nost_vm* vm, nost_val* val, const char* loc) {
         return;
     nost_obj* obj = nost_asObj(*val);
     if(obj->onArena != vm->doingArenaGC)
+        return;
+    if(!vm->doingArenaGC && obj->marked)
         return;
     if(obj->type == NOST_OBJ_PTR_FWD) {
         *val = nost_objVal(obj->next); 
@@ -54,15 +90,28 @@ static void traceGreyObj(nost_vm* vm, nost_obj* obj) {
             ADD_TO_GREY(vm, &cons->cdr);
             break;
         }
+        case NOST_OBJ_FN: {
+            nost_fn* fn = (nost_fn*)obj;
+            ADD_TO_GREY(vm, &fn->bytecode);
+            break;
+        }
+        case NOST_OBJ_CLOSURE: {
+            nost_closure* closure = (nost_closure*)obj;
+            ADD_TO_GREY(vm, &closure->fn);
+            ADD_TO_GREY(vm, &closure->closureCtx);
+            break;
+        }
         case NOST_OBJ_NAT_FN:
             break;
         case NOST_OBJ_FIBER: {
             nost_fiber* fiber = (nost_fiber*)obj;
-            ADD_TO_GREY(vm, &fiber->bytecode);
             for(int i = 0; i < fiber->stack.cnt; i++) {
                 ADD_TO_GREY(vm, &fiber->stack.vals[i]);
             }
-            ADD_TO_GREY(vm, &fiber->ctx);
+            for(int i = 0; i < fiber->frames.cnt; i++) {
+                ADD_TO_GREY(vm, &fiber->frames.vals[i].bytecode);
+                ADD_TO_GREY(vm, &fiber->frames.vals[i].ctx);
+            }
             break;
         }
         case NOST_OBJ_SRC:
@@ -139,6 +188,12 @@ static void traceGreyObj(nost_vm* vm, nost_obj* obj) {
                     ADD_TO_GREY(vm, &call->srcObj);
                     break;
                 }
+                case NOST_AST_LAMBDA: {
+                    nost_astLambda* lambda = (nost_astLambda*)ast;
+                    ADD_TO_GREY(vm, &lambda->argName);
+                    ADD_TO_GREY(vm, &lambda->body);
+                    break;
+                }
             }
             break;
         }
@@ -185,6 +240,10 @@ static void heapifyObj(nost_vm* vm, nost_obj* obj) {
             break;
         case NOST_OBJ_CONS:
             break;
+        case NOST_OBJ_FN:
+            break;
+        case NOST_OBJ_CLOSURE:
+            break;
         case NOST_OBJ_NAT_FN:
             break;
         case NOST_OBJ_FIBER: {
@@ -229,6 +288,8 @@ static void heapifyObj(nost_vm* vm, nost_obj* obj) {
                     heapifyRes(vm, (void**)&call->args, sizeof(nost_val) * call->nArgs);
                     break;
                 }
+                case NOST_AST_LAMBDA:
+                    break;
             }
             break;
         }
@@ -303,6 +364,9 @@ void nost_gc(nost_vm* vm) {
         return;
     nost_gcArena(vm);
     vm->pauseGC = true;
+
+    for(nost_obj* curr = vm->objs; curr != NULL; curr = curr->next)
+        curr->marked = false;
 
     vm->doingArenaGC = false;
     int initGrey = vm->grey.cnt;

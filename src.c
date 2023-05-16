@@ -10,13 +10,13 @@ nost_val nost_makeSrc(nost_vm* vm) {
 }
 
 void nost_initSrc(nost_vm* vm, nost_val srcVal, const char* txt) {
-    nost_ref src = nost_pushBlessing(vm, srcVal);
+    nost_ref src = NOST_PUSH_BLESSING(vm, srcVal);
     size_t txtLen = strlen(txt);
     char* txtCopy = NOST_RES_ALLOC(vm, txtLen + 1, nost_refAsObj(vm, src)->onArena);
     strcpy(txtCopy, txt);
     nost_refAsSrc(vm, src)->src = txtCopy; 
     nost_refAsSrc(vm, src)->len = txtLen;
-    nost_popBlessing(vm);
+    NOST_POP_BLESSING(vm, src);
 }
 
 nost_val nost_makeSrcObj(nost_vm* vm, nost_ref src, nost_ref val, int start, int end) {

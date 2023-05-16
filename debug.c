@@ -3,14 +3,17 @@
 #include "sym.h"
 #include "src.h"
 
-static void dumpAst(nost_ast* ast, int indent) {
-
-    // TODO: this is bad. nil val not guaranteed to have a null pointer. too bad! 
-    if(ast == NULL)
-        return;
+static void dumpAst(nost_val astVal, int indent) {
 
     for(int i = 0; i < indent; i++)
         printf("\t");
+
+    if(nost_isNil(astVal)) {
+        printf("NIL AST\n"); 
+        return;
+    }
+    nost_ast* ast = nost_asAst(astVal);
+
     switch(ast->type) {
         case NOST_AST_LITERAL: {
             // TODO: actually print the value. too lazy to do that rn.
@@ -30,44 +33,54 @@ static void dumpAst(nost_ast* ast, int indent) {
         case NOST_AST_VAR_DECL: {
             nost_astVarDecl* decl = (nost_astVarDecl*)ast;
             printf("var decl %s\n", nost_asSym(nost_unwrap(decl->name))->sym);
-            dumpAst(nost_asAst(decl->val), indent + 1);
+            dumpAst(decl->val, indent + 1);
             break;
         }
         case NOST_AST_PROGN: { 
             nost_astProgn* progn = (nost_astProgn*)ast;
             printf("progn\n");
             for(int i = 0; i < progn->nExprs; i++)
-                dumpAst(nost_asAst(progn->exprs[i]), indent + 1);
+                dumpAst(progn->exprs[i], indent + 1);
             break;
         }
         case NOST_AST_SCOPE: {
             nost_astScope* scope = (nost_astScope*)ast;
             printf("scope\n");
-            dumpAst(nost_asAst(scope->expr), indent + 1);
+            dumpAst(scope->expr, indent + 1);
             break;
         }
         case NOST_AST_IF: {
             nost_astIf* ifAst = (nost_astIf*)ast;
             printf("if\n");
-            dumpAst(nost_asAst(ifAst->cond), indent + 1);
-            dumpAst(nost_asAst(ifAst->thenExpr), indent + 1);
+            dumpAst(ifAst->cond, indent + 1);
+            dumpAst(ifAst->thenExpr, indent + 1);
             if(!nost_isNil(ifAst->elseExpr)) {
-                dumpAst(nost_asAst(ifAst->elseExpr), indent + 1);
+                dumpAst(ifAst->elseExpr, indent + 1);
             }
             break;
         }
         case NOST_AST_CALL: {
             nost_astCall* call = (nost_astCall*)ast;
             printf("call %d\n", call->nArgs);
-            dumpAst(nost_asAst(call->func), indent + 1);
+            dumpAst(call->func, indent + 1);
             for(int i = 0; i < call->nArgs; i++)
-                dumpAst(nost_asAst(call->args[i]), indent + 1);
+                dumpAst(call->args[i], indent + 1);
+            break;
+        }
+        case NOST_AST_LAMBDA: {
+            nost_astLambda* lambda = (nost_astLambda*)ast;
+            printf("lambda");
+            if(!nost_isNil(nost_unwrap(lambda->argName))) {
+                printf(" %s", nost_asSym(nost_unwrap(lambda->argName))->sym); 
+            }
+            printf("\n");
+            dumpAst(lambda->body, indent + 1);
             break;
         }
     }
 }
 
-void nost_dumpAst(nost_ast* ast) {
+void nost_dumpAst(nost_val ast) {
     dumpAst(ast, 0);
 }
 
@@ -84,6 +97,10 @@ void nost_dumpBytecode(nost_bytecode* bytecode) {
         switch(op) {
             case NOST_OP_DONE: {
                 printf("done\n");
+                break;
+            }
+            case NOST_OP_RETURN: {
+                printf("return\n");
                 break;
             }
             case NOST_OP_POP: {
@@ -124,6 +141,10 @@ void nost_dumpBytecode(nost_bytecode* bytecode) {
             case NOST_OP_CALL: {
                 int nArgs = READ();
                 printf("call %d\n", nArgs);
+                break;
+            }
+            case NOST_OP_MAKE_CLOSURE: {
+                printf("make closure\n");
                 break;
             }
             default: {

@@ -33,11 +33,11 @@ int nost_listLen(nost_val list) {
 }
 
 nost_val nost_nth(nost_vm* vm, nost_val list, int n) {
-    nost_ref ref = nost_pushBlessing(vm, list);
+    nost_ref ref = NOST_PUSH_BLESSING(vm, list);
     for(int i = 0; i < n; i++) {
         nost_setRef(vm, ref, nost_refCdr(vm, ref));
     }
     nost_val res = nost_refCar(vm, ref);
-    nost_popBlessing(vm);
+    NOST_POP_BLESSING(vm, ref);
     return res;
 }

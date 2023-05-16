@@ -14,8 +14,8 @@ nost_val nost_makeCtx(nost_vm* vm, nost_val parent) {
 }
 
 void nost_addDynvar(nost_vm* vm, nost_ref ctx, nost_val nameVal, nost_val valVal) {
-    nost_ref name = nost_pushBlessing(vm, nameVal);
-    nost_ref val = nost_pushBlessing(vm, valVal);
+    nost_ref name = NOST_PUSH_BLESSING(vm, nameVal);
+    nost_ref val = NOST_PUSH_BLESSING(vm, valVal);
 
     nost_gcDynarr(nost_dynvar) newVars;
     nost_dynvar var;
@@ -28,8 +28,8 @@ void nost_addDynvar(nost_vm* vm, nost_ref ctx, nost_val nameVal, nost_val valVal
     newVars.vals[newVars.cnt - 1].val = nost_getRef(vm, val);
     nost_moveGCDynarr(&newVars, &nost_refAsCtx(vm, ctx)->vars);
 
-    nost_popBlessing(vm);
-    nost_popBlessing(vm);
+    NOST_POP_BLESSING(vm, val);
+    NOST_POP_BLESSING(vm, name);
 }
 
 static bool varInCtx(nost_val name, nost_val ctxVal) {
@@ -57,39 +57,22 @@ nost_val nost_getVar(bool* valid, nost_val ctxVal, nost_val name) {
     return nost_getVar(valid, ctx->parent, name);
 }
 
-// TODO: move to dedicated stldib module
-static nost_val add(nost_vm* vm, int nArgs, nost_val* args) {
-    (void)vm;
-    double sum = 0;
-    for(int i = 0; i < nArgs; i++) {
-        sum += nost_asNum(args[i]);
-    }
-    return nost_numVal(sum);
-}
-
 nost_val nost_makeFiber(nost_vm* vm) {
     nost_fiber* fiber = (nost_fiber*)nost_allocObj(vm, NOST_OBJ_FIBER, sizeof(nost_fiber));
-    fiber->bytecode = nost_nilVal();
     fiber->hadError = false;
     nost_initGCDynarr(&fiber->stack);
-    nost_ref ref = nost_pushBlessing(vm, nost_objVal((nost_obj*)fiber));
-
-    nost_val ctx = nost_makeCtx(vm, nost_nilVal());
-    nost_ref ctxRef = nost_pushBlessing(vm, ctx);
-    nost_val sym = nost_makeSymWithLen(vm, 1);
-    nost_initSym(sym, "+");
-    nost_ref symRef = nost_pushBlessing(vm, sym);
-    nost_val fn = nost_makeNatFn(vm, add); 
-    nost_addDynvar(vm, ctxRef, nost_getRef(vm, symRef), fn);
-    nost_refAsFiber(vm, ref)->ctx = nost_getRef(vm, ctxRef); 
+    nost_initGCDynarr(&fiber->frames);
+    nost_ref ref = NOST_PUSH_BLESSING(vm, nost_objVal((nost_obj*)fiber));
 
     nost_val res = nost_objVal(nost_refAsObj(vm, ref));
-    nost_popBlessing(vm);
+    NOST_POP_BLESSING(vm, ref);
     return res;
 }
 
 static void push(nost_vm* vm, nost_ref fiber, nost_val val) {
-    nost_ref ref = nost_pushBlessing(vm, val);
+    // TODO: this amount of nonsense for a core vm operation is horrible.
+    // potential solution: make every existing fiber's stack an implicit GC root 
+    nost_ref ref = NOST_PUSH_BLESSING(vm, val);
     nost_gcDynarr(nost_val) oldStack;
     nost_moveGCDynarr(&nost_refAsFiber(vm, fiber)->stack, &oldStack);
     nost_gcDynarr(nost_val) newStack;
@@ -97,7 +80,7 @@ static void push(nost_vm* vm, nost_ref fiber, nost_val val) {
     nost_writeBarrier(vm, nost_getRef(vm, fiber), nost_getRef(vm, ref));
     newStack.vals[newStack.cnt - 1] = nost_getRef(vm, ref);
     nost_moveGCDynarr(&newStack, &nost_refAsFiber(vm, fiber)->stack);
-    nost_popBlessing(vm);
+    NOST_POP_BLESSING(vm, ref);
 }
 
 static nost_val pop(nost_vm* vm, nost_ref fiberRef) {
@@ -115,15 +98,54 @@ static nost_val peek(nost_vm* vm, nost_ref fiberRef) {
     return res;
 }
 
-static void error(nost_vm* vm, nost_ref fiber, int ip, nost_ref bytecode) {
+static nost_frame* currFrame(nost_vm* vm, nost_ref fiber) {
+    nost_fiber* fiberPtr = nost_refAsFiber(vm, fiber);
+    return &fiberPtr->frames.vals[fiberPtr->frames.cnt - 1];
+} 
+
+static void pushFrame(nost_vm* vm, nost_ref fiber, nost_val bytecode, nost_val ctx) {
+    nost_ref bytecodeRef = NOST_PUSH_BLESSING(vm, bytecode);
+    nost_ref ctxRef = NOST_PUSH_BLESSING(vm, ctx);
+
+    nost_frame frame;
+    frame.bytecode = nost_nilVal();
+    frame.ctx = nost_nilVal();
+    frame.ip = 0;
+    nost_gcDynarr(nost_frame) newFrames;
+    nost_gcPushDynarr(vm, &nost_refAsFiber(vm, fiber)->frames, frame, &newFrames);
+    nost_moveGCDynarr(&newFrames, &nost_refAsFiber(vm, fiber)->frames);
+
+    nost_writeBarrier(vm, nost_getRef(vm, fiber), nost_getRef(vm, bytecodeRef));
+    currFrame(vm, fiber)->bytecode = nost_getRef(vm, bytecodeRef);
+    nost_writeBarrier(vm, nost_getRef(vm, fiber), nost_getRef(vm, ctxRef));
+    currFrame(vm, fiber)->ctx = nost_getRef(vm, ctxRef);
+
+    NOST_POP_BLESSING(vm, ctxRef);
+    NOST_POP_BLESSING(vm, bytecodeRef);
+}
+
+static void popFrame(nost_vm* vm, nost_ref fiber) {
+    nost_popDynarr(vm, &nost_refAsFiber(vm, fiber)->frames);
+}
+
+static nost_bytecode* currBytecode(nost_vm* vm, nost_ref fiber) {
+    return nost_asBytecode(currFrame(vm, fiber)->bytecode);
+}
+
+static nost_val currCtx(nost_vm* vm, nost_ref fiber) {
+    return currFrame(vm, fiber)->ctx;
+}
+
+
+static void error(nost_vm* vm, nost_ref fiber, int ip) {
     nost_refAsFiber(vm, fiber)->hadError = true;
     nost_initError(&nost_refAsFiber(vm, fiber)->err);
     nost_addMsg(vm, &nost_refAsFiber(vm, fiber)->err, "Runtime Error.");
     // TODO: add full stack trace here
     bool found = false;
-    for(int i = 0; i < nost_refAsBytecode(vm, bytecode)->errors.cnt; i++) {
-        if(nost_refAsBytecode(vm, bytecode)->errors.vals[i].ip == ip) {
-            nost_addValRef(vm, &nost_refAsFiber(vm, fiber)->err, nost_refAsBytecode(vm, bytecode)->errors.vals[i].src);
+    for(int i = 0; i < currBytecode(vm, fiber)->errors.cnt; i++) {
+        if(currBytecode(vm, fiber)->errors.vals[i].ip == ip) {
+            nost_addValRef(vm, &nost_refAsFiber(vm, fiber)->err, currBytecode(vm, fiber)->errors.vals[i].src);
             found = true;
             break;
         }
@@ -131,14 +153,13 @@ static void error(nost_vm* vm, nost_ref fiber, int ip, nost_ref bytecode) {
     NOST_ASSERT(found, "Specified IP not found in bytecode error points.");
 }
 
-nost_val nost_execBytecode(nost_vm* vm, nost_val fiberVal, nost_val bytecodeVal) {
-    nost_ref fiber = nost_pushBlessing(vm, fiberVal);
-    nost_ref bytecode = nost_pushBlessing(vm, bytecodeVal);
+nost_val nost_execBytecode(nost_vm* vm, nost_ref fiber, nost_val bytecodeVal, nost_val ctx) {
 
-    nost_refAsFiber(vm, fiber)->bytecode = nost_getRef(vm, bytecode);
-    int ip = 0; 
+    nost_ref bytecodeRef = NOST_PUSH_BLESSING(vm, bytecodeVal);  
+    pushFrame(vm, fiber, nost_getRef(vm, bytecodeRef), ctx);
+    NOST_POP_BLESSING(vm, bytecodeRef);
 
-#define READ() (nost_refAsBytecode(vm, bytecode)->code.vals[ip++])
+#define READ() (currBytecode(vm, fiber)->code.vals[currFrame(vm, fiber)->ip++])
 
     uint32_t read32Res;
 #define READ32() do {read32Res = 0; read32Res |= READ() << 24; read32Res |= READ() << 16; read32Res |= READ() << 8; read32Res |= READ(); } while(0); 
@@ -146,12 +167,16 @@ nost_val nost_execBytecode(nost_vm* vm, nost_val fiberVal, nost_val bytecodeVal)
     nost_val res = nost_nilVal();
 
     while(true) {
-        int startIp = ip;
+        int startIp = currFrame(vm, fiber)->ip;
         nost_op op = READ();
         switch(op) {
             case NOST_OP_DONE: {
                 res = pop(vm, fiber); 
                 goto done; 
+            }
+            case NOST_OP_RETURN: {
+                popFrame(vm, fiber); 
+                break;
             }
             case NOST_OP_POP: {
                 pop(vm, fiber);
@@ -159,100 +184,126 @@ nost_val nost_execBytecode(nost_vm* vm, nost_val fiberVal, nost_val bytecodeVal)
             }
             case NOST_OP_LOAD8: {
                 uint8_t idx = READ();
-                nost_val val = nost_refAsBytecode(vm, bytecode)->consts.vals[idx];
+                nost_val val = currBytecode(vm, fiber)->consts.vals[idx];
                 push(vm, fiber, val); 
                 break;
             }
             case NOST_OP_GET_DYNVAR: {
                 nost_val name = pop(vm, fiber);
                 bool valid;
-                nost_val val = nost_getVar(&valid, nost_refAsFiber(vm, fiber)->ctx, name);
+                nost_val val = nost_getVar(&valid, currCtx(vm, fiber), name);
                 if(valid) {
                     push(vm, fiber, val);
                 } else {
-                    nost_ref nameRef = nost_pushBlessing(vm, name);
+                    nost_ref nameRef = NOST_PUSH_BLESSING(vm, name);
 
-                    error(vm, fiber, startIp, bytecode);
+                    error(vm, fiber, startIp);
                     nost_addMsg(vm, &nost_refAsFiber(vm, fiber)->err, "Variable '%s' does not exist.", nost_refAsSym(vm, nameRef)->sym);
 
-                    nost_popBlessing(vm);
+                    NOST_POP_BLESSING(vm, nameRef);
                     goto done;
                 }
                 break;
             }
             case NOST_OP_MAKE_DYNVAR: {
                 nost_val name = pop(vm, fiber); 
-                if(varInCtx(name, nost_refAsFiber(vm, fiber)->ctx)) {
-                    nost_ref nameRef = nost_pushBlessing(vm, name);
-                    error(vm, fiber, startIp, bytecode);
+                if(varInCtx(name, currCtx(vm, fiber))) {
+                    nost_ref nameRef = NOST_PUSH_BLESSING(vm, name);
+                    error(vm, fiber, startIp);
                     nost_addMsg(vm, &nost_refAsFiber(vm, fiber)->err, "Redeclaration of variable '%s'.", nost_refAsSym(vm, nameRef)->sym);
                     // TODO: add an "original declaration here" part to the error
-                    nost_popBlessing(vm);
+                    NOST_POP_BLESSING(vm, nameRef);
                     goto done;
                 }
                 nost_val val = peek(vm, fiber);
-                nost_ref ctxRef = nost_pushBlessing(vm, nost_refAsFiber(vm, fiber)->ctx);
+                nost_ref ctxRef = NOST_PUSH_BLESSING(vm, currCtx(vm, fiber));
                 nost_addDynvar(vm, ctxRef, name, val); 
-                nost_popBlessing(vm);
+                NOST_POP_BLESSING(vm, ctxRef);
                 break;
             }
             case NOST_OP_PUSH_CTX: {
-                nost_val newCtx = nost_makeCtx(vm, nost_refAsFiber(vm, fiber)->ctx);
+                nost_val newCtx = nost_makeCtx(vm, currCtx(vm, fiber));
                 nost_writeBarrier(vm, nost_getRef(vm, fiber), newCtx);
-                nost_refAsFiber(vm, fiber)->ctx = newCtx;
+                currFrame(vm, fiber)->ctx = newCtx;
                 break;
             }
             case NOST_OP_POP_CTX: {
-                nost_writeBarrier(vm, nost_getRef(vm, fiber), nost_asCtx(nost_refAsFiber(vm, fiber)->ctx)->parent);
-                nost_refAsFiber(vm, fiber)->ctx = nost_asCtx(nost_refAsFiber(vm, fiber)->ctx)->parent;
+                nost_writeBarrier(vm, nost_getRef(vm, fiber), nost_asCtx(currCtx(vm, fiber))->parent);
+                currFrame(vm, fiber)->ctx = nost_asCtx(currCtx(vm, fiber))->parent;
                 break;
             }
             case NOST_OP_JUMP: {
                 READ32();
-                ip = read32Res;
+                currFrame(vm, fiber)->ip = read32Res;
                 break;
             }
             case NOST_OP_JUMP_FALSE: {
                 READ32();
                 if(nost_isNil(pop(vm, fiber))) {
-                    ip = read32Res;
+                    currFrame(vm, fiber)->ip = read32Res;
                 }
                 break;
             }
             case NOST_OP_CALL: {
-                nost_val fn = pop(vm, fiber);
-                if(!nost_isNatFn(fn)) {
-                    error(vm, fiber, startIp, bytecode);
-                    nost_addMsg(vm, &nost_refAsFiber(vm, fiber)->err, "Cannot call %s.", nost_typename(fn));
 
+                if(nost_refAsFiber(vm, fiber)->frames.cnt == 4096) {
+                    error(vm, fiber, startIp);
+                    nost_addMsg(vm, &nost_refAsFiber(vm, fiber)->err, "Stack overflow."); 
+                    goto done;
+                }
+
+                nost_val fn = pop(vm, fiber);
+                if(!nost_isClosure(fn) && !nost_isNatFn(fn)) {
+                    error(vm, fiber, startIp);
+                    nost_addMsg(vm, &nost_refAsFiber(vm, fiber)->err, "Cannot call %s.", nost_typename(fn));
                     goto done;
                 }
 
                 int args = READ();
 
-                // TODO: this currently only implements native functions.
+                if(nost_isClosure(fn)) {
+                    nost_ref fnRef = NOST_PUSH_BLESSING(vm, fn);
 
-                push(vm, fiber, fn);
-                nost_val* vals = NOST_GC_ALLOC(vm, args * sizeof(nost_val));
-                fn = pop(vm, fiber);
+                    nost_ref argList = NOST_PUSH_BLESSING(vm, nost_nilVal());
+                    for(int i = 0; i < args; i++) {
+                        nost_val cons = nost_makeCons(vm);
+                        nost_initCons(cons, pop(vm, fiber), nost_getRef(vm, argList));
+                        nost_setRef(vm, argList, cons); 
+                    }
+                    push(vm, fiber, nost_getRef(vm, argList));
+                    NOST_POP_BLESSING(vm, argList);
 
-                for(int i = args - 1; i >= 0; i--) {
-                    vals[i] = pop(vm, fiber);
+                    nost_val newCtx = nost_makeCtx(vm, nost_refAsClosure(vm, fnRef)->closureCtx);
+                    pushFrame(vm, fiber, nost_asFn(nost_refAsClosure(vm, fnRef)->fn)->bytecode, newCtx);
+
+                    NOST_POP_BLESSING(vm, fnRef);
+                } else if(nost_isNatFn(fn)) {
+                    push(vm, fiber, fn);
+                    nost_val* vals = NOST_GC_ALLOC(vm, args * sizeof(nost_val));
+                    fn = pop(vm, fiber);
+
+                    for(int i = args - 1; i >= 0; i--) {
+                        vals[i] = pop(vm, fiber);
+                    }
+
+                    nost_natFn* natFn = nost_asNatFn(fn);
+                    push(vm, fiber, natFn->fn(vm, args, vals));
+                    NOST_GC_FREE(vm, vals, args * sizeof(nost_val));
                 }
 
-                nost_natFn* natFn = nost_asNatFn(fn);
-                push(vm, fiber, natFn->fn(vm, args, vals));
-                NOST_GC_FREE(vm, vals, args * sizeof(nost_val));
-
+                break;
+            }
+            case NOST_OP_MAKE_CLOSURE: {
+                nost_val fn = pop(vm, fiber);
+                nost_val ctx = currCtx(vm, fiber);
+                nost_val closure = nost_makeClosure(vm, fn, ctx);
+                push(vm, fiber, closure);
                 break;
             }
         }
     }
 
     done:
-
-    nost_popBlessing(vm); // bytecode
-    nost_popBlessing(vm); // fiber
 
     return res; 
 

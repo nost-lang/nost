@@ -4,14 +4,27 @@
 
 #include "vm.h"
 #include "val.h"
+#include "config.h"
 
-// SAFETY-TODO: blessings *are* being leaked. make a blessing tracker to fix asap
 // SAFETY-TODO: make a write barrier tracker
 
-typedef int nost_ref;
+#ifndef NOST_BLESS_TRACK
 
 nost_ref nost_pushBlessing(nost_vm* vm, nost_val val);
 void nost_popBlessing(nost_vm* vm);
+
+#define NOST_PUSH_BLESSING(vm, val) nost_pushBlessing(vm, val)
+#define NOST_POP_BLESSING(vm, ref) nost_popBlessing(vm)
+
+#else 
+
+nost_ref nost_pushBlessing(nost_vm* vm, nost_val val, const char* loc);
+void nost_popBlessing(nost_vm* vm, nost_ref ref);
+
+#define NOST_PUSH_BLESSING(vm, val) nost_pushBlessing(vm, val, NOST_LOC())
+#define NOST_POP_BLESSING(vm, ref) nost_popBlessing(vm, ref)
+
+#endif
 
 void nost_gcArena(nost_vm* vm);
 void nost_gc(nost_vm* vm);

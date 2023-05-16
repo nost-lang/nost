@@ -7,6 +7,8 @@
 typedef enum {
     NOST_OBJ_SYM,
     NOST_OBJ_CONS,
+    NOST_OBJ_FN,
+    NOST_OBJ_CLOSURE,
     NOST_OBJ_NAT_FN,
    // NOST_OBJ_PKG,
     NOST_OBJ_FIBER,
@@ -22,6 +24,8 @@ typedef enum {
 #define NOST_OBJ_X \
     NOST_X_INSTANCE(sym, Sym, SYM) \
     NOST_X_INSTANCE(cons, Cons, CONS) \
+    NOST_X_INSTANCE(fn, Fn, FN) \
+    NOST_X_INSTANCE(closure, Closure, CLOSURE) \
     NOST_X_INSTANCE(natFn, NatFn, NAT_FN) \
     NOST_X_INSTANCE(fiber, Fiber, FIBER) \
     NOST_X_INSTANCE(src, Src, SRC) \
@@ -82,7 +86,18 @@ bool nost_isObj(nost_val val);
 double nost_asNum(nost_val val);
 nost_obj* nost_asObj(nost_val val);
 
-typedef int nost_ref;
+#ifndef NOST_BLESS_TRACK
+
+typedef uint32_t nost_ref;
+
+#else
+
+typedef struct {
+    uint32_t idx;
+    const char* loc;
+} nost_ref;
+
+#endif
 
 nost_val nost_getRef(struct nost_vm* vm, nost_ref ref);
 void nost_setRef(struct nost_vm* vm, nost_ref ref, nost_val val);

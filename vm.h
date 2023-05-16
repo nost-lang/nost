@@ -15,6 +15,9 @@ typedef struct nost_vm {
     nost_dynarr(const char*) greyLocs;
 #endif
     nost_dynarr(nost_val) blessed;
+#ifdef NOST_BLESS_TRACK
+    nost_dynarr(nost_ref) blessedRefs;
+#endif
     nost_dynarr(nost_val) heapToArenaRoots;
     size_t liveHeap;
     size_t gcThreshold;

@@ -35,11 +35,16 @@ void nost_freeObj(nost_vm* vm, nost_obj* obj) {
             break;
         case NOST_OBJ_CONS:
             break;
+        case NOST_OBJ_FN:
+            break;
+        case NOST_OBJ_CLOSURE:
+            break;
         case NOST_OBJ_NAT_FN:
             break;
         case NOST_OBJ_FIBER: {
             nost_fiber* fiber = (nost_fiber*)obj;
             nost_freeGCDynarr(vm, &fiber->stack);
+            nost_freeGCDynarr(vm, &fiber->frames);
             break;
         }
         case NOST_OBJ_SRC: {
@@ -72,6 +77,8 @@ void nost_freeObj(nost_vm* vm, nost_obj* obj) {
                     NOST_RES_FREE(vm, call->args, sizeof(nost_val) * call->nArgs);
                     break;
                 }
+                case NOST_AST_LAMBDA:
+                    break;
             } 
             break;
         }
@@ -102,6 +109,10 @@ size_t nost_getObjSize(nost_obj* obj) {
         }
         case NOST_OBJ_CONS:
             return sizeof(nost_cons);
+        case NOST_OBJ_FN:
+            return sizeof(nost_fn);
+        case NOST_OBJ_CLOSURE:
+            return sizeof(nost_closure);
         case NOST_OBJ_NAT_FN:
             return sizeof(nost_natFn);
         case NOST_OBJ_FIBER:
@@ -140,7 +151,7 @@ nost_val nost_noneVal() {
 }
 
 nost_val nost_nilVal() {
-    return (nost_val){NOST_VAL_NIL, {.num = 0}};
+    return (nost_val){NOST_VAL_NIL, {.obj = NULL}};
 }
 
 nost_val nost_numVal(double num) {
@@ -183,12 +194,23 @@ nost_obj* nost_asObj(nost_val val) {
 
 
 nost_val nost_getRef(nost_vm* vm, nost_ref ref) {
-    NOST_ASSERT(vm->blessed.cnt > ref, "Invalid ref.");
+#ifndef NOST_BLESS_TRACK
+    NOST_ASSERT(vm->blessed.cnt > (int)ref, "Invalid ref.");
     return vm->blessed.vals[ref];
+#else
+    NOST_ASSERT(vm->blessed.cnt > (int)ref.idx, "Invalid ref.");
+    return vm->blessed.vals[ref.idx];
+#endif
 }
 
 void nost_setRef(nost_vm* vm, nost_ref ref, nost_val val) {
+#ifndef NOST_BLESS_TRACK
+    NOST_ASSERT(vm->blessed.cnt > (int)ref, "Invalid ref.");
     vm->blessed.vals[ref] = val;
+#else
+    NOST_ASSERT(vm->blessed.cnt > (int)ref.idx, "Invalid ref.");
+    vm->blessed.vals[ref.idx] = val;
+#endif
 }
 
 bool nost_refIsNil(nost_vm* vm, nost_ref ref) {
@@ -239,6 +261,8 @@ const char* nost_typename(nost_val val) {
                 return "sym";
             case NOST_OBJ_CONS:
                 return "cons"; 
+            case NOST_OBJ_FN:
+            case NOST_OBJ_CLOSURE:
             case NOST_OBJ_NAT_FN:
                 return "fn";
             case NOST_OBJ_FIBER:

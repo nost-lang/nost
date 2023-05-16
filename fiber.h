@@ -23,17 +23,22 @@ nost_val nost_makeCtx(nost_vm* vm, nost_val parent);
 void nost_addDynvar(nost_vm* vm, nost_ref ctx, nost_val name, nost_val val); 
 nost_val nost_getVar(bool* valid, nost_val ctx, nost_val name);
 
+typedef struct {
+    nost_val ctx;
+    nost_val bytecode;
+    int ip;
+} nost_frame;
+
 typedef struct nost_fiber {
     nost_obj obj;
-    nost_val bytecode;
     nost_gcDynarr(nost_val) stack;
-    nost_val ctx;
+    nost_gcDynarr(nost_frame) frames;
 
     nost_error err;
     bool hadError;
 } nost_fiber;
 
 nost_val nost_makeFiber(nost_vm* vm);
-nost_val nost_execBytecode(nost_vm* vm, nost_val fiber, nost_val bytecode);
+nost_val nost_execBytecode(nost_vm* vm, nost_ref fiber, nost_val bytecode, nost_val ctx);
 
 #endif

@@ -60,7 +60,7 @@ void nost_addSrcRef(nost_vm* vm, nost_error* error, nost_ref src, int start, int
         lineStart++;
     
     size_t lineEnd = end;
-    while(lineEnd != nost_refAsSrc(vm, src)->len && nost_refAsSrc(vm, src)->src[lineEnd] != '\n')
+    while(lineEnd < nost_refAsSrc(vm, src)->len && nost_refAsSrc(vm, src)->src[lineEnd] != '\n')
         lineEnd++;
 
     char* line = NOST_ALLOC(vm, lineEnd - lineStart + 1);
@@ -80,12 +80,12 @@ void nost_addSrcRef(nost_vm* vm, nost_error* error, nost_ref src, int start, int
 }
 
 void nost_addValRef(nost_vm* vm, nost_error* error, nost_val val) {
-    nost_ref ref = nost_pushBlessing(vm, val);
+    nost_ref ref = NOST_PUSH_BLESSING(vm, val);
 
     if(nost_refIsSrcObj(vm, ref)) {
-        nost_ref src = nost_pushBlessing(vm, nost_refAsSrcObj(vm, ref)->src);
+        nost_ref src = NOST_PUSH_BLESSING(vm, nost_refAsSrcObj(vm, ref)->src);
         nost_addSrcRef(vm, error, src, nost_refAsSrcObj(vm, ref)->start, nost_refAsSrcObj(vm, ref)->end);
-        nost_popBlessing(vm);
+        NOST_POP_BLESSING(vm, src);
     } else {
         nost_errorPiece piece;
         piece.type = NOST_PIECE_VAL_REF;
@@ -104,7 +104,7 @@ void nost_addValRef(nost_vm* vm, nost_error* error, nost_val val) {
         nost_pushDynarr(vm, &error->pieces, piece);
     }
 
-    nost_popBlessing(vm);
+    NOST_POP_BLESSING(vm, ref);
 }
 
 static void writePiece(nost_vm* vm, nost_str* str, nost_errorPiece* piece) {

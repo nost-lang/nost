@@ -15,7 +15,8 @@ typedef enum {
     NOST_AST_PROGN,
     NOST_AST_SCOPE,
     NOST_AST_IF,
-    NOST_AST_CALL
+    NOST_AST_CALL,
+    NOST_AST_LAMBDA
 } nost_astType;
 
 typedef struct nost_ast {
@@ -66,6 +67,12 @@ typedef struct {
     nost_val srcObj; // TODO: remove. this is redundant. but i'm too lazy to do it rn...
 } nost_astCall;
 
+typedef struct {
+    nost_ast ast;
+    nost_val argName;
+    nost_val body;
+} nost_astLambda;
+
 size_t nost_astSize(nost_astType type);
 nost_val nost_parse(nost_vm* vm, nost_val val, nost_errors* errors);
 
@@ -76,7 +83,8 @@ nost_val nost_parse(nost_vm* vm, nost_val val, nost_errors* errors);
     NOST_X_INSTANCE(Progn, PROGN) \
     NOST_X_INSTANCE(Scope, SCOPE) \
     NOST_X_INSTANCE(If, IF) \
-    NOST_X_INSTANCE(Call, CALL)
+    NOST_X_INSTANCE(Call, CALL) \
+    NOST_X_INSTANCE(Lambda, LAMBDA)
 
 #define NOST_X_INSTANCE(name, nameCap) \
     bool nost_isAst ## name(nost_val val); \

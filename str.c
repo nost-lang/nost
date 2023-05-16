@@ -1,5 +1,7 @@
 
 #include "str.h"
+#include "gc.h"
+#include "list.h"
 
 void nost_initStr(nost_str* str) {
     str->str = NULL;
@@ -44,7 +46,24 @@ void nost_writeVal(nost_vm* vm, nost_str* str, nost_val val) {
         nost_writeStr(vm, str, "%g", nost_asNum(val));
         return;
     }
-    // TODO: actual printing for symbols, cons pairs, etc
+    if(nost_isCons(val)) {
+        nost_ref ref = NOST_PUSH_BLESSING(vm, val);
+        nost_writeStr(vm, str, "(");
+        while(true) {
+            nost_writeVal(vm, str, nost_refCar(vm, ref));
+            if(nost_isNil(nost_refCdr(vm, ref))) {
+                nost_writeStr(vm, str, ")");
+                break;
+            } else if(nost_isCons(nost_refCdr(vm, ref))) {
+                nost_writeStr(vm, str, " ");
+            } else {
+                nost_writeStr(vm, str, " . ");
+            }
+            nost_setRef(vm, ref, nost_refCdr(vm, ref));
+        }
+        NOST_POP_BLESSING(vm, ref);
+        return;
+    }
     if(nost_isObj(val)) {
         nost_writeStr(vm, str, "<%s>", nost_typename(val));
         return;

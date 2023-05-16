@@ -14,7 +14,7 @@ nost_val nost_makeBytecode(nost_vm* vm) {
 void nost_writeByte(nost_vm* vm, nost_ref bytecode, uint8_t byte, nost_val src) {
     int ip = nost_refAsBytecode(vm, bytecode)->code.cnt;
     if(!nost_isNone(src)) {
-        nost_ref srcRef = nost_pushBlessing(vm, src);
+        nost_ref srcRef = NOST_PUSH_BLESSING(vm, src);
 
         nost_errorPoint err;
         err.ip = ip;
@@ -27,7 +27,7 @@ void nost_writeByte(nost_vm* vm, nost_ref bytecode, uint8_t byte, nost_val src) 
         nost_writeBarrier(vm, nost_getRef(vm, bytecode), nost_getRef(vm, srcRef));
         nost_refAsBytecode(vm, bytecode)->errors.vals[nost_refAsBytecode(vm, bytecode)->errors.cnt - 1].src = nost_getRef(vm, srcRef);
     
-        nost_popBlessing(vm);
+        NOST_POP_BLESSING(vm, srcRef);
     }
     nost_gcDynarr(uint8_t) newCode;
     nost_gcPushDynarr(vm, &nost_refAsBytecode(vm, bytecode)->code, byte, &newCode);
@@ -35,7 +35,7 @@ void nost_writeByte(nost_vm* vm, nost_ref bytecode, uint8_t byte, nost_val src) 
 }
 
 void nost_writeConst(nost_vm* vm, nost_ref bytecode, nost_val val) {
-    nost_ref ref = nost_pushBlessing(vm, val);
+    nost_ref ref = NOST_PUSH_BLESSING(vm, val);
     nost_writeByte(vm, bytecode, NOST_OP_LOAD8, nost_noneVal()); 
     nost_writeByte(vm, bytecode, nost_refAsBytecode(vm, bytecode)->consts.cnt, nost_noneVal());
     nost_gcDynarr(nost_val) newConsts;
@@ -43,7 +43,7 @@ void nost_writeConst(nost_vm* vm, nost_ref bytecode, nost_val val) {
     nost_writeBarrier(vm, nost_getRef(vm, bytecode), nost_getRef(vm, ref));
     newConsts.vals[newConsts.cnt - 1] = nost_getRef(vm, ref);
     nost_moveGCDynarr(&newConsts, &nost_refAsBytecode(vm, bytecode)->consts);
-    nost_popBlessing(vm);
+    NOST_POP_BLESSING(vm, ref);
 }
 
 void nost_patch32(struct nost_vm* vm, nost_ref bytecode, int addr, uint32_t val) {
