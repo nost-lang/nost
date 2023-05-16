@@ -128,6 +128,7 @@ void nost_compile(nost_vm* vm, nost_ref ast, nost_ref bytecode, nost_errors* err
         nost_ref fnBytecode = NOST_PUSH_BLESSING(vm, nost_makeBytecode(vm));
         nost_writeConst(vm, fnBytecode, nost_unwrap(nost_refAsAstLambda(vm, ast)->argName));
         nost_writeByte(vm, fnBytecode, NOST_OP_MAKE_DYNVAR, nost_refAsAstLambda(vm, ast)->argName);
+        nost_writeByte(vm, fnBytecode, NOST_OP_POP, nost_nilVal());
         nost_ref fnBody = NOST_PUSH_BLESSING(vm, nost_refAsAstLambda(vm, ast)->body);
         nost_compile(vm, fnBody, fnBytecode, errors);
         NOST_POP_BLESSING(vm, fnBody);

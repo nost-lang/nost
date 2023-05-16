@@ -392,8 +392,6 @@ void nost_gc(nost_vm* vm) {
 
     nost_obj* prev = NULL;
     for(nost_obj* curr = vm->objs; curr != NULL;) {
-        nost_vm* newVm = vm;
-        (void)newVm;
         NOST_ASSERT(curr->type != NOST_OBJ_PTR_FWD, "Pointer forward must not be on the heap list.");
         if(curr->marked) {
             prev = curr;
