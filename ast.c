@@ -31,6 +31,7 @@ static nost_ast* allocAst(nost_vm* vm, nost_astType type, nost_val src) {
     nost_ast* ast = (nost_ast*)nost_allocObj(vm, NOST_OBJ_AST, nost_astSize(type));
     ast->type = type;
     ast->src = nost_getRef(vm, ref); 
+    ast->onReturnPath = false;
     NOST_POP_BLESSING(vm, ref);
     return ast;
 }

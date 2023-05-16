@@ -117,7 +117,7 @@ void nost_compile(nost_vm* vm, nost_ref ast, nost_ref bytecode, nost_errors* err
         nost_ref func = NOST_PUSH_BLESSING(vm, nost_refAsAstCall(vm, ast)->func);
         nost_compile(vm, func, bytecode, errors);
 
-        nost_writeByte(vm, bytecode, NOST_OP_CALL, nost_refAsAst(vm, ast)->src);
+        nost_writeByte(vm, bytecode, nost_refAsAst(vm, ast)->onReturnPath ? NOST_OP_TAILCALL : NOST_OP_CALL, nost_refAsAst(vm, ast)->src);
         nost_writeByte(vm, bytecode, nost_refAsAstCall(vm, ast)->nArgs, nost_noneVal());
 
         NOST_POP_BLESSING(vm, func);
@@ -133,6 +133,10 @@ void nost_compile(nost_vm* vm, nost_ref ast, nost_ref bytecode, nost_errors* err
         NOST_POP_BLESSING(vm, fnBody);
         nost_writeByte(vm, fnBytecode, NOST_OP_RETURN, nost_refAsAstLambda(vm, ast)->argName);
         
+        printf("== FN BYTECODE ==\n");
+        nost_dumpBytecode(nost_refAsBytecode(vm, fnBytecode));
+        printf("\n\n");
+
         nost_val fn = nost_makeFn(vm, nost_getRef(vm, fnBytecode));
         NOST_POP_BLESSING(vm, fnBytecode);
         nost_writeConst(vm, bytecode, fn);

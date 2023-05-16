@@ -22,6 +22,7 @@ typedef enum {
 typedef struct nost_ast {
     nost_obj obj;
     nost_astType type;
+    bool onReturnPath;
     nost_val src;
 } nost_ast;
 

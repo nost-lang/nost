@@ -244,7 +244,8 @@ nost_val nost_execBytecode(nost_vm* vm, nost_ref fiber, nost_val bytecodeVal, no
                 }
                 break;
             }
-            case NOST_OP_CALL: {
+            case NOST_OP_CALL:
+            case NOST_OP_TAILCALL: {
 
                 if(nost_refAsFiber(vm, fiber)->frames.cnt == 4096) {
                     error(vm, fiber, startIp);
@@ -274,7 +275,15 @@ nost_val nost_execBytecode(nost_vm* vm, nost_ref fiber, nost_val bytecodeVal, no
                     NOST_POP_BLESSING(vm, argList);
 
                     nost_val newCtx = nost_makeCtx(vm, nost_refAsClosure(vm, fnRef)->closureCtx);
-                    pushFrame(vm, fiber, nost_asFn(nost_refAsClosure(vm, fnRef)->fn)->bytecode, newCtx);
+                    nost_val newBytecode = nost_asFn(nost_refAsClosure(vm, fnRef)->fn)->bytecode; 
+                    if(op == NOST_OP_TAILCALL && currBytecode(vm, fiber) == nost_asBytecode(newBytecode)) {
+                        nost_writeBarrier(vm, nost_getRef(vm, fiber), newCtx);
+                        currFrame(vm, fiber)->ctx = newCtx;
+                        currFrame(vm, fiber)->bytecode = newBytecode;
+                        currFrame(vm, fiber)->ip = 0;
+                    } else {
+                        pushFrame(vm, fiber, newBytecode, newCtx);
+                    }
 
                     NOST_POP_BLESSING(vm, fnRef);
                 } else if(nost_isNatFn(fn)) {

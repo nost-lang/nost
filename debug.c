@@ -5,13 +5,17 @@
 
 static void dumpAst(nost_val astVal, int indent) {
 
-    for(int i = 0; i < indent; i++)
-        printf("\t");
-
     if(nost_isNil(astVal)) {
+        for(int i = 0; i < indent; i++)
+            printf("\t");
         printf("NIL AST\n"); 
         return;
     }
+
+    printf("[%c]", nost_asAst(astVal)->onReturnPath ? 'X' : ' ');
+    for(int i = 0; i < indent; i++)
+        printf("\t");
+    
     nost_ast* ast = nost_asAst(astVal);
 
     switch(ast->type) {
@@ -138,9 +142,10 @@ void nost_dumpBytecode(nost_bytecode* bytecode) {
                 printf("jump if false %d\n", read32Res);
                 break;
             }
-            case NOST_OP_CALL: {
+            case NOST_OP_CALL: 
+            case NOST_OP_TAILCALL: {
                 int nArgs = READ();
-                printf("call %d\n", nArgs);
+                printf("%s %d\n", op == NOST_OP_TAILCALL ? "tailcall" : "call", nArgs);
                 break;
             }
             case NOST_OP_MAKE_CLOSURE: {

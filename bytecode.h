@@ -23,6 +23,7 @@ typedef enum {
     NOST_OP_JUMP_FALSE,
 
     NOST_OP_CALL,
+    NOST_OP_TAILCALL,
 
     NOST_OP_MAKE_CLOSURE
 } nost_op;
