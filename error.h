@@ -6,6 +6,11 @@
 #include "vm.h"
 #include "str.h"
 
+// MAJOR-TODO: rework the error system.
+// current dislikes:
+//   * error piece system is akward. forces errors to be generated in an unnatural linear way.
+//   * overly reliant on storing strings. would not make it easy for embeder to show errors in, say, an editor given line info. would be forced to parse out.
+
 typedef struct {
     enum {
         NOST_PIECE_MSG,

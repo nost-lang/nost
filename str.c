@@ -3,6 +3,7 @@
 #include "gc.h"
 #include "list.h"
 #include "sym.h"
+#include "src.h"
 
 void nost_initStr(nost_str* str) {
     str->str = NULL;
@@ -38,6 +39,7 @@ void nost_writeStr(nost_vm* vm, nost_str* str, const char* fmt, ...) {
 }
 
 void nost_writeVal(nost_vm* vm, nost_str* str, nost_val val) {
+    val = nost_unwrap(val); 
     NOST_ASSERT(!nost_isNone(val), "None should not be user visible.");
     if(nost_isNil(val)) {
         nost_writeStr(vm, str, "nil");
@@ -48,7 +50,10 @@ void nost_writeVal(nost_vm* vm, nost_str* str, nost_val val) {
         return;
     }
     if(nost_isSym(val)) {
-        nost_writeStr(vm, str, "%s", nost_asSym(val)->sym);
+        char* copy = NOST_ALLOC(vm, nost_asSym(val)->len + 1); 
+        strcpy(copy, nost_asSym(val)->sym);
+        nost_writeStr(vm, str, "%s", copy);
+        NOST_FREE(vm, copy);
         return;
     }
     if(nost_isCons(val)) {

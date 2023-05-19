@@ -43,7 +43,7 @@ static nost_val plus(nost_vm* vm, nost_ref fiber, int nArgs, nost_val* args) {
 }
 
 static nost_val minus(nost_vm* vm, nost_ref fiber, int nArgs, nost_val* args) {
-    double res = 0.0
+    double res = 0.0;
     for(int i = 0; i < nArgs; i++) {
         if(!nost_isNum(args[i])) {
             nost_natFnError(vm, fiber, "%d%s argument is not a number.", i + 1, nost_ordinalSuffix(i + 1));

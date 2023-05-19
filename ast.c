@@ -62,6 +62,25 @@ static bool carIsSym(nost_vm* vm, nost_ref val, const char* desiredSym) {
     return strcmp(sym->sym, desiredSym) == 0;
 }
 
+static nost_val parseQuote(nost_vm* vm, nost_ref val, nost_ref srcVal, nost_errors* errors) {
+    int len = nost_listLen(nost_getRef(vm, val));
+    if(len == 1) {
+        nost_error* err = makeError(vm, errors);
+        nost_addMsg(vm, err, "Expected value to quote.");
+        addValEndRef(vm, err, nost_getRef(vm, srcVal));
+        return nost_nilVal();
+    }
+    if(len > 2) {
+        nost_error* err = makeError(vm, errors);
+        nost_addMsg(vm, err, "Quote only takes one value.");
+        addValEndRef(vm, err, nost_getRef(vm, srcVal));
+        return nost_nilVal();
+    }
+    nost_astLiteral* literal = (nost_astLiteral*)allocAst(vm, NOST_AST_LITERAL, nost_getRef(vm, srcVal));
+    literal->val = nost_nth(vm, nost_getRef(vm, val), 1); 
+    return nost_objVal((nost_obj*)literal);
+}
+
 static nost_val parseVarDecl(nost_vm* vm, nost_ref val, nost_ref srcVal, nost_errors* errors) {
     int len = nost_listLen(nost_getRef(vm, val));
     if(len == 1) {
@@ -287,6 +306,10 @@ nost_val nost_parse(nost_vm* vm, nost_val srcValRaw, nost_errors* errors) {
 
         // SAFETY-TODO: ensure that the cons pair is a nil-terminated list. if its not, this code will crash!
 
+        if(carIsSym(vm, val, "quote")) {
+            res = parseQuote(vm, val, srcVal, errors);
+            goto done;
+        }
         if(carIsSym(vm, val, "var")) {
             res = parseVarDecl(vm, val, srcVal, errors);
             goto done;

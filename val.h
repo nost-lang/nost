@@ -30,7 +30,6 @@ typedef enum {
     NOST_X_INSTANCE(pkg, Pkg, PKG) \
     NOST_X_INSTANCE(fiber, Fiber, FIBER) \
     NOST_X_INSTANCE(src, Src, SRC) \
-    NOST_X_INSTANCE(srcObj, SrcObj, SRC_OBJ) \
     NOST_X_INSTANCE(ast, Ast, AST) \
     NOST_X_INSTANCE(bytecode, Bytecode, BYTECODE) \
     NOST_X_INSTANCE(ctx, Ctx, CTX) 
@@ -118,6 +117,11 @@ nost_obj* nost_refAsObj(struct nost_vm* vm, nost_ref ref);
     struct nost_ ## typename* nost_refAs ## fnName(struct nost_vm* vm, nost_ref ref);
 NOST_OBJ_X
 #undef NOST_X_INSTANCE
+
+bool nost_isSrcObj(nost_val val);
+struct nost_srcObj* nost_asSrcObj(nost_val val);
+bool nost_refIsSrcObj(struct nost_vm* vm, nost_ref ref);
+struct nost_srcObj* nost_refAsSrcObj(struct nost_vm* vm, nost_ref ref);
 
 const char* nost_typename(nost_val val);
 bool nost_eq(nost_val a, nost_val b);

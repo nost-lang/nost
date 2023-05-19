@@ -178,10 +178,12 @@ bool nost_isNone(nost_val val) {
 }
 
 bool nost_isNil(nost_val val) {
+    val = nost_unwrap(val);
     return val.type == NOST_VAL_NIL;
 }
 
 bool nost_isNum(nost_val val) {
+    val = nost_unwrap(val);
     return val.type == NOST_VAL_NUM;
 }
 
@@ -190,13 +192,13 @@ bool nost_isObj(nost_val val) {
 }
 
 double nost_asNum(nost_val val) {
+    val = nost_unwrap(val);
     return val.as.num;
 }
 
 nost_obj* nost_asObj(nost_val val) {
     return val.as.obj;
 }
-
 
 nost_val nost_getRef(nost_vm* vm, nost_ref ref) {
 #ifndef NOST_BLESS_TRACK
@@ -244,9 +246,11 @@ nost_obj* nost_refAsObj(nost_vm* vm, nost_ref ref) {
 
 #define NOST_X_INSTANCE(typename, fnName, enumName) \
     bool nost_is ## fnName(nost_val val) { \
+        val = nost_unwrap(val); \
         return nost_isObj(val) && nost_asObj(val)->type == NOST_OBJ_ ## enumName; \
     } \
     struct nost_ ## typename* nost_as ## fnName(nost_val val) { \
+        val = nost_unwrap(val); \
         NOST_ASSERT(nost_asObj(val)->type == NOST_OBJ_ ## enumName, "Cannot cast this value to " #typename); \
         return (nost_ ## typename*)nost_asObj(val); \
     } \
@@ -259,7 +263,24 @@ nost_obj* nost_refAsObj(nost_vm* vm, nost_ref ref) {
 NOST_OBJ_X
 #undef NOST_X_INSTANCE
 
+bool nost_isSrcObj(nost_val val) {
+    return nost_isObj(val) && nost_asObj(val)->type == NOST_OBJ_SRC_OBJ;
+}
+
+nost_srcObj* nost_asSrcObj(nost_val val) {
+    return (nost_srcObj*)nost_asObj(val);
+}
+
+bool nost_refIsSrcObj(nost_vm* vm, nost_ref ref) {
+    return nost_isSrcObj(nost_getRef(vm, ref));
+}
+
+nost_srcObj* nost_refAsSrcObj(nost_vm* vm, nost_ref ref) {
+    return nost_asSrcObj(nost_getRef(vm, ref));
+}
+
 const char* nost_typename(nost_val val) {
+    val = nost_unwrap(val);
     if(nost_isNil(val))
         return "nil";
     if(nost_isNum(val))
