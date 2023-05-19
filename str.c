@@ -2,6 +2,7 @@
 #include "str.h"
 #include "gc.h"
 #include "list.h"
+#include "sym.h"
 
 void nost_initStr(nost_str* str) {
     str->str = NULL;
@@ -44,6 +45,10 @@ void nost_writeVal(nost_vm* vm, nost_str* str, nost_val val) {
     }    
     if(nost_isNum(val)) {
         nost_writeStr(vm, str, "%g", nost_asNum(val));
+        return;
+    }
+    if(nost_isSym(val)) {
+        nost_writeStr(vm, str, "%s", nost_asSym(val)->sym);
         return;
     }
     if(nost_isCons(val)) {

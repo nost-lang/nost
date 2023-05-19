@@ -5,6 +5,7 @@
 #include "src.h"
 #include "ast.h"
 #include "fn.h"
+#include "pkg.h"
 
 #ifndef NOST_BLESS_TRACK
 
@@ -103,6 +104,11 @@ static void traceGreyObj(nost_vm* vm, nost_obj* obj) {
         }
         case NOST_OBJ_NAT_FN:
             break;
+        case NOST_OBJ_PKG: {
+            nost_pkg* pkg = (nost_pkg*)obj;
+            ADD_TO_GREY(vm, &pkg->ctx);
+            break;
+        }
         case NOST_OBJ_FIBER: {
             nost_fiber* fiber = (nost_fiber*)obj;
             for(int i = 0; i < fiber->stack.cnt; i++) {
@@ -204,6 +210,9 @@ static void traceGreyObj(nost_vm* vm, nost_obj* obj) {
 
 static void addRootsToGrey(nost_vm* vm) {
 
+    ADD_TO_GREY(vm, &vm->stdlibCtx);
+    ADD_TO_GREY(vm, &vm->t);
+
     for(int i = 0; i < vm->blessed.cnt; i++) {
         ADD_TO_GREY(vm, &vm->blessed.vals[i]);
     }
@@ -246,9 +255,12 @@ static void heapifyObj(nost_vm* vm, nost_obj* obj) {
             break;
         case NOST_OBJ_NAT_FN:
             break;
+        case NOST_OBJ_PKG:
+            break;
         case NOST_OBJ_FIBER: {
             nost_fiber* fiber = (nost_fiber*)obj;
             nost_heapifyGCDynarr(vm, &fiber->stack);
+            nost_heapifyGCDynarr(vm, &fiber->frames);
             break;
         }
         case NOST_OBJ_SRC: {

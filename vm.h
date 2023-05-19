@@ -26,6 +26,9 @@ typedef struct nost_vm {
     // NOTE: only use in exceptional circumstances. only pauses mark sweep collection.
     bool pauseGC; 
 
+    nost_val stdlibCtx;
+    nost_val t;
+
 #ifdef NOST_MEM_TRACK
     size_t allocatedMem;
     nost_memTracker* trackers;

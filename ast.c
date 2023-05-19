@@ -265,6 +265,11 @@ nost_val nost_parse(nost_vm* vm, nost_val srcValRaw, nost_errors* errors) {
     nost_ref srcVal = NOST_PUSH_BLESSING(vm, srcValRaw);
     nost_ref val = NOST_PUSH_BLESSING(vm, nost_unwrap(nost_getRef(vm, srcVal)));
     nost_val res = nost_nilVal();
+
+    if(nost_refIsNone(vm, val)) {
+        res = nost_nilVal();
+        goto done;
+    }
     
     if(nost_refIsNil(vm, val) || nost_refIsNum(vm, val)) {
         nost_astLiteral* literal = (nost_astLiteral*)allocAst(vm, NOST_AST_LITERAL, nost_getRef(vm, srcVal));
@@ -278,7 +283,7 @@ nost_val nost_parse(nost_vm* vm, nost_val srcValRaw, nost_errors* errors) {
         res = nost_objVal((nost_obj*)var);
         goto done;
     }
-    if(nost_refIsCons(vm, val)) {
+    if(nost_refIsConslike(vm, val)) {
 
         // SAFETY-TODO: ensure that the cons pair is a nil-terminated list. if its not, this code will crash!
 

@@ -18,7 +18,7 @@ typedef struct nost_closure {
 } nost_closure;
 nost_val nost_makeClosure(nost_vm* vm, nost_val fn, nost_val closureCtx);
 
-typedef nost_val (*nost_fnPtr)(nost_vm* vm, int nArgs, nost_val* args); 
+typedef nost_val (*nost_fnPtr)(nost_vm* vm, nost_ref fiber, int nArgs, nost_val* args); 
 typedef struct nost_natFn {
     nost_obj obj;
     nost_fnPtr fn;

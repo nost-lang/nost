@@ -6,6 +6,9 @@
 
 // TODO: move all the list stuff from val.h here
 
+bool nost_isConslike(nost_val val);
+bool nost_refIsConslike(nost_vm* vm, nost_ref ref);
+
 nost_val nost_car(nost_val val);
 nost_val nost_cdr(nost_val val);
 nost_val nost_refCar(nost_vm* vm, nost_ref ref);

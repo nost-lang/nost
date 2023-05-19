@@ -41,4 +41,6 @@ typedef struct nost_fiber {
 nost_val nost_makeFiber(nost_vm* vm);
 nost_val nost_execBytecode(nost_vm* vm, nost_ref fiber, nost_val bytecode, nost_val ctx);
 
+void nost_natFnError(nost_vm* vm, nost_ref fiber, const char* fmt, ...);
+
 #endif

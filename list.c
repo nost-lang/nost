@@ -1,13 +1,23 @@
 
 #include "list.h"
 #include "gc.h"
+#include "src.h"
+
+bool nost_isConslike(nost_val val) {
+    val = nost_unwrap(val);
+    return nost_isCons(val);
+}
+
+bool nost_refIsConslike(nost_vm* vm, nost_ref ref) {
+    return nost_isConslike(nost_getRef(vm, ref));
+}
 
 nost_val nost_car(nost_val val) {
-    return nost_asCons(val)->car;
+    return nost_asCons(nost_unwrap(val))->car;
 }
 
 nost_val nost_cdr(nost_val val) {
-    return nost_asCons(val)->cdr;
+    return nost_asCons(nost_unwrap(val))->cdr;
 }
 
 nost_val nost_refCar(nost_vm* vm, nost_ref ref) {

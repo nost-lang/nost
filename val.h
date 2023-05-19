@@ -10,7 +10,7 @@ typedef enum {
     NOST_OBJ_FN,
     NOST_OBJ_CLOSURE,
     NOST_OBJ_NAT_FN,
-   // NOST_OBJ_PKG,
+    NOST_OBJ_PKG,
     NOST_OBJ_FIBER,
 
     NOST_OBJ_SRC,
@@ -27,6 +27,7 @@ typedef enum {
     NOST_X_INSTANCE(fn, Fn, FN) \
     NOST_X_INSTANCE(closure, Closure, CLOSURE) \
     NOST_X_INSTANCE(natFn, NatFn, NAT_FN) \
+    NOST_X_INSTANCE(pkg, Pkg, PKG) \
     NOST_X_INSTANCE(fiber, Fiber, FIBER) \
     NOST_X_INSTANCE(src, Src, SRC) \
     NOST_X_INSTANCE(srcObj, SrcObj, SRC_OBJ) \
@@ -102,6 +103,7 @@ typedef struct {
 nost_val nost_getRef(struct nost_vm* vm, nost_ref ref);
 void nost_setRef(struct nost_vm* vm, nost_ref ref, nost_val val);
 
+bool nost_refIsNone(struct nost_vm* vm, nost_ref ref);
 bool nost_refIsNil(struct nost_vm* vm, nost_ref ref);
 bool nost_refIsNum(struct nost_vm* vm, nost_ref ref);
 bool nost_refIsObj(struct nost_vm* vm, nost_ref ref);
@@ -118,5 +120,6 @@ NOST_OBJ_X
 #undef NOST_X_INSTANCE
 
 const char* nost_typename(nost_val val);
+bool nost_eq(nost_val a, nost_val b);
 
 #endif

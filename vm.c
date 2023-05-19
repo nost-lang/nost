@@ -1,5 +1,7 @@
 
 #include "vm.h"
+#include "stdlib.h"
+#include "sym.h"
 
 void nost_initVM(nost_vm* vm) {
 
@@ -30,7 +32,14 @@ void nost_initVM(nost_vm* vm) {
     nost_initArena(vm, &vm->arena, 1024 * 1024);
 #endif
 
+    vm->stdlibCtx = nost_nilVal();
+    vm->t = nost_nilVal();
+
     vm->pauseGC = false;
+
+    vm->t = nost_makeSymWithLen(vm, 1);
+    nost_initSym(vm->t, "T");
+    nost_initStdlib(vm);
 
 }
 

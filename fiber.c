@@ -296,7 +296,7 @@ nost_val nost_execBytecode(nost_vm* vm, nost_ref fiber, nost_val bytecodeVal, no
                     }
 
                     nost_natFn* natFn = nost_asNatFn(fn);
-                    push(vm, fiber, natFn->fn(vm, args, vals));
+                    push(vm, fiber, natFn->fn(vm, fiber, args, vals));
                     NOST_GC_FREE(vm, vals, args * sizeof(nost_val));
                 }
 
@@ -314,9 +314,28 @@ nost_val nost_execBytecode(nost_vm* vm, nost_ref fiber, nost_val bytecodeVal, no
 
     done:
 
+    popFrame(vm, fiber);
+
     return res; 
 
 #undef READ
 #undef READ32
 
+}
+
+void nost_natFnError(nost_vm* vm, nost_ref fiber, const char* fmt, ...) {
+
+    va_list args;
+    va_start(args, fmt);
+
+    // TODO: the ip - 2 is an ugly hack relying on the fact that call instructions are 2 bytes
+    error(vm, fiber, currFrame(vm, fiber)->ip - 2);
+
+    // TODO: too lazy to do dynamic mem alloc here, but should be fine.
+    char buf[1024];
+    vsnprintf(buf, 1020, fmt, args);
+    nost_addMsg(vm, &nost_refAsFiber(vm, fiber)->err, "%s", buf);
+
+    va_end(args);
+    
 }

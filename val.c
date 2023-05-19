@@ -9,6 +9,7 @@
 #include "ast.h"
 #include "sym.h"
 #include "fn.h"
+#include "pkg.h"
 
 nost_obj* nost_allocObj(nost_vm* vm, nost_objType type, size_t size) {
     nost_obj* obj = nost_arenaAlloc(&vm->arena, size);
@@ -40,6 +41,8 @@ void nost_freeObj(nost_vm* vm, nost_obj* obj) {
         case NOST_OBJ_CLOSURE:
             break;
         case NOST_OBJ_NAT_FN:
+            break;
+        case NOST_OBJ_PKG:
             break;
         case NOST_OBJ_FIBER: {
             nost_fiber* fiber = (nost_fiber*)obj;
@@ -115,6 +118,8 @@ size_t nost_getObjSize(nost_obj* obj) {
             return sizeof(nost_closure);
         case NOST_OBJ_NAT_FN:
             return sizeof(nost_natFn);
+        case NOST_OBJ_PKG:
+            return sizeof(nost_pkg);
         case NOST_OBJ_FIBER:
             return sizeof(nost_fiber);
         case NOST_OBJ_SRC:
@@ -213,6 +218,10 @@ void nost_setRef(nost_vm* vm, nost_ref ref, nost_val val) {
 #endif
 }
 
+bool nost_refIsNone(nost_vm* vm, nost_ref ref) {
+    return nost_isNone(nost_getRef(vm, ref));
+}
+
 bool nost_refIsNil(nost_vm* vm, nost_ref ref) {
     return nost_isNil(nost_getRef(vm, ref));
 }
@@ -265,6 +274,8 @@ const char* nost_typename(nost_val val) {
             case NOST_OBJ_CLOSURE:
             case NOST_OBJ_NAT_FN:
                 return "fn";
+            case NOST_OBJ_PKG:
+                return "pkg";
             case NOST_OBJ_FIBER:
                 return "fiber";
             case NOST_OBJ_SRC:
@@ -280,5 +291,17 @@ const char* nost_typename(nost_val val) {
 
     NOST_ASSERT(false, "Some typename is missing.");
     return "XXX";
+}
+
+bool nost_eq(nost_val a, nost_val b) {
+    a = nost_unwrap(a);
+    b = nost_unwrap(b);
+    if(nost_isNil(a))
+        return nost_isNil(b);
+    if(nost_isNum(a))
+        return nost_isNum(b) && nost_asNum(a) == nost_asNum(b);
+    if(nost_isSym(a))
+        return nost_isSym(b) && nost_symEq(a, b);
+    return nost_asObj(a) == nost_asObj(b);
 }
 
