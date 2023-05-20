@@ -68,6 +68,9 @@ void nost_writeVal(nost_vm* vm, nost_str* str, nost_val val) {
                 nost_writeStr(vm, str, " ");
             } else {
                 nost_writeStr(vm, str, " . ");
+                nost_writeVal(vm, str, nost_refCdr(vm, ref));
+                nost_writeStr(vm, str, ")");
+                break;
             }
             nost_setRef(vm, ref, nost_refCdr(vm, ref));
         }

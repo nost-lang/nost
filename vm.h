@@ -29,6 +29,8 @@ typedef struct nost_vm {
     nost_val stdlibCtx;
     nost_val t;
 
+    uint32_t gensymIdx;
+
 #ifdef NOST_MEM_TRACK
     size_t allocatedMem;
     nost_memTracker* trackers;

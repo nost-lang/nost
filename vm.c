@@ -39,6 +39,8 @@ void nost_initVM(nost_vm* vm) {
 
     vm->t = nost_makeSymWithLen(vm, 1);
     nost_initSym(vm->t, "T");
+    vm->gensymIdx = 0;
+
     nost_initStdlib(vm);
 
 }
