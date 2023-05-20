@@ -5,6 +5,9 @@
 #include "sym.h"
 #include "src.h"
 #include "fn.h"
+#include "ast.h"
+#include "analysis.h"
+#include "compiler.h"
 
 nost_val nost_makeCtx(nost_vm* vm, nost_val parent) {
     nost_ctx* ctx = (nost_ctx*)nost_allocObj(vm, NOST_OBJ_CTX, sizeof(nost_ctx));
@@ -307,6 +310,43 @@ nost_val nost_execBytecode(nost_vm* vm, nost_ref fiber, nost_val bytecodeVal, no
                 nost_val ctx = currCtx(vm, fiber);
                 nost_val closure = nost_makeClosure(vm, fn, ctx);
                 push(vm, fiber, closure);
+                break;
+            }
+            case NOST_OP_EVAL: {
+
+                nost_val code = pop(vm, fiber);
+
+                nost_errors errs;
+                nost_initDynarr(&errs);
+
+                nost_ref ast = NOST_PUSH_BLESSING(vm, nost_parse(vm, code, &errs));
+                nost_analyze(nost_getRef(vm, ast));
+                nost_ref newBytecode = NOST_PUSH_BLESSING(vm, nost_makeBytecode(vm));
+                nost_compile(vm, ast, newBytecode, &errs);
+                nost_writeByte(vm, newBytecode, NOST_OP_RETURN, nost_noneVal());
+
+                if(errs.cnt > 0) {
+                    NOST_POP_BLESSING(vm, newBytecode);
+                    NOST_POP_BLESSING(vm, ast);
+                    // TODO: realllly cursed. also, limits reporting to one error. FIX
+                    // also, this does not allow for stack traces. REALLY BAD!
+                    // fix as part of the error rework in the future
+                    nost_refAsFiber(vm, fiber)->err = errs.vals[0];
+                    nost_refAsFiber(vm, fiber)->hadError = true;
+
+                    for(int i = 1; i < errs.cnt; i++) {
+                        nost_freeError(vm, &errs.vals[i]);
+                    }
+                    nost_freeDynarr(vm, &errs);
+                    goto done;
+                }
+
+                nost_freeDynarr(vm, &errs);
+
+                pushFrame(vm, fiber, nost_getRef(vm, newBytecode), currCtx(vm, fiber));
+
+                NOST_POP_BLESSING(vm, newBytecode);
+                NOST_POP_BLESSING(vm, ast);
                 break;
             }
         }

@@ -16,7 +16,8 @@ typedef enum {
     NOST_AST_SCOPE,
     NOST_AST_IF,
     NOST_AST_CALL,
-    NOST_AST_LAMBDA
+    NOST_AST_LAMBDA,
+    NOST_AST_EVAL
 } nost_astType;
 
 typedef struct nost_ast {
@@ -74,6 +75,11 @@ typedef struct {
     nost_val body;
 } nost_astLambda;
 
+typedef struct {
+    nost_ast ast;
+    nost_val expr;
+} nost_astEval;
+
 size_t nost_astSize(nost_astType type);
 nost_val nost_parse(nost_vm* vm, nost_val val, nost_errors* errors);
 
@@ -85,7 +91,8 @@ nost_val nost_parse(nost_vm* vm, nost_val val, nost_errors* errors);
     NOST_X_INSTANCE(Scope, SCOPE) \
     NOST_X_INSTANCE(If, IF) \
     NOST_X_INSTANCE(Call, CALL) \
-    NOST_X_INSTANCE(Lambda, LAMBDA)
+    NOST_X_INSTANCE(Lambda, LAMBDA) \
+    NOST_X_INSTANCE(Eval, EVAL)
 
 #define NOST_X_INSTANCE(name, nameCap) \
     bool nost_isAst ## name(nost_val val); \

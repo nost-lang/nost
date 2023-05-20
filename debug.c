@@ -81,6 +81,12 @@ static void dumpAst(nost_val astVal, int indent) {
             dumpAst(lambda->body, indent + 1);
             break;
         }
+        case NOST_AST_EVAL: {
+            nost_astEval* eval = (nost_astEval*)ast;
+            printf("eval\n");
+            dumpAst(eval->expr, indent + 1);
+            break;
+        }
     }
 }
 
@@ -150,6 +156,10 @@ void nost_dumpBytecode(nost_bytecode* bytecode) {
             }
             case NOST_OP_MAKE_CLOSURE: {
                 printf("make closure\n");
+                break;
+            }
+            case NOST_OP_EVAL: {
+                printf("eval\n");
                 break;
             }
             default: {

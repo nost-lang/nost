@@ -25,7 +25,9 @@ typedef enum {
     NOST_OP_CALL,
     NOST_OP_TAILCALL,
 
-    NOST_OP_MAKE_CLOSURE
+    NOST_OP_MAKE_CLOSURE,
+
+    NOST_OP_EVAL
 } nost_op;
 
 typedef struct {

@@ -59,6 +59,11 @@ static void analyze(nost_val ast, nost_val parent) {
             analyze(lambda->body, ast);
             break;
         }
+        case NOST_AST_EVAL: {
+            nost_astEval* eval = nost_asAstEval(ast);
+            analyze(eval->expr, ast);
+            break;
+        }
     }
 
 }

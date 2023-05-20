@@ -82,6 +82,8 @@ void nost_freeObj(nost_vm* vm, nost_obj* obj) {
                 }
                 case NOST_AST_LAMBDA:
                     break;
+                case NOST_AST_EVAL:
+                    break;
             } 
             break;
         }

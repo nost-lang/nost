@@ -23,6 +23,8 @@ size_t nost_astSize(nost_astType type) {
             return sizeof(nost_astCall);
         case NOST_AST_LAMBDA:
             return sizeof(nost_astLambda);
+        case NOST_AST_EVAL:
+            return sizeof(nost_astEval);
     }
 }
 
@@ -280,6 +282,36 @@ static nost_val parseLambda(nost_vm* vm, nost_ref val, nost_ref srcVal, nost_err
 
 }
 
+static nost_val parseEval(nost_vm* vm, nost_ref val, nost_ref srcVal, nost_errors* errors) {
+
+    int len = nost_listLen(nost_getRef(vm, val));
+
+    if(len == 1) {
+        nost_error* err = makeError(vm, errors);
+        nost_addMsg(vm, err, "Expected expression.");
+        addValEndRef(vm, err, nost_getRef(vm, srcVal));
+        return nost_nilVal();
+    }
+    if(len > 2) {
+        nost_error* err = makeError(vm, errors);
+        nost_addMsg(vm, err, "Eval only takes one expression.");
+        addValEndRef(vm, err, nost_getRef(vm, srcVal));
+        return nost_nilVal();
+    }
+
+    nost_astEval* eval = (nost_astEval*)allocAst(vm, NOST_AST_EVAL, nost_getRef(vm, srcVal));
+    nost_ref evalRef = NOST_PUSH_BLESSING(vm, nost_objVal((nost_obj*)eval));
+
+    nost_val exprAst = nost_parse(vm, nost_nth(vm, nost_getRef(vm, val), 1), errors);
+    nost_writeBarrier(vm, nost_getRef(vm, evalRef), exprAst);
+    nost_refAsAstEval(vm, evalRef)->expr = exprAst;
+
+    nost_val res = nost_getRef(vm, evalRef);
+    NOST_POP_BLESSING(vm, evalRef);
+    return res;
+
+}
+
 nost_val nost_parse(nost_vm* vm, nost_val srcValRaw, nost_errors* errors) {
     nost_ref srcVal = NOST_PUSH_BLESSING(vm, srcValRaw);
     nost_ref val = NOST_PUSH_BLESSING(vm, nost_unwrap(nost_getRef(vm, srcVal)));
@@ -328,6 +360,10 @@ nost_val nost_parse(nost_vm* vm, nost_val srcValRaw, nost_errors* errors) {
         }
         if(carIsSym(vm, val, "lambda")) {
             res = parseLambda(vm, val, srcVal, errors);
+            goto done;
+        }
+        if(carIsSym(vm, val, "eval")) {
+            res = parseEval(vm, val, srcVal, errors);
             goto done;
         }
 

@@ -141,6 +141,13 @@ void nost_compile(nost_vm* vm, nost_ref ast, nost_ref bytecode, nost_errors* err
         nost_writeByte(vm, bytecode, NOST_OP_MAKE_CLOSURE, nost_noneVal());
         return;
     }
+    if(nost_refIsAstEval(vm, ast)) {
+        nost_ref expr = NOST_PUSH_BLESSING(vm, nost_refAsAstEval(vm, ast)->expr);
+        nost_compile(vm, expr, bytecode, errors); 
+        NOST_POP_BLESSING(vm, expr);
+        nost_writeByte(vm, bytecode, NOST_OP_EVAL, nost_refAsAst(vm, ast)->src);
+        return;
+    }
 
     NOST_ASSERT(false, "Compiler given non-ast value.") 
 

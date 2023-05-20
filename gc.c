@@ -200,6 +200,11 @@ static void traceGreyObj(nost_vm* vm, nost_obj* obj) {
                     ADD_TO_GREY(vm, &lambda->body);
                     break;
                 }
+                case NOST_AST_EVAL: {
+                    nost_astEval* eval = (nost_astEval*)ast;
+                    ADD_TO_GREY(vm, &eval->expr);
+                    break;
+                }
             }
             break;
         }
@@ -301,6 +306,8 @@ static void heapifyObj(nost_vm* vm, nost_obj* obj) {
                     break;
                 }
                 case NOST_AST_LAMBDA:
+                    break;
+                case NOST_AST_EVAL:
                     break;
             }
             break;
